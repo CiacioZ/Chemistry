@@ -5,8 +5,6 @@ import (
 	"image"
 	"log"
 
-	"chemistry/engine/utils"
-
 	"github.com/google/uuid"
 )
 
@@ -179,7 +177,7 @@ func (l *Location) AddWalkableArea(area WalkableArea) {
 	l.walkableAreas = append(l.walkableAreas, area)
 }
 
-func NewItem(name string, useWith bool, pickable bool, imagePath string) Item {
+func NewItem(name string, useWith bool, pickable bool, sprite []byte) Item {
 	data := Item{
 		Entity: Entity{
 			ID:   uuid.New().String(),
@@ -190,8 +188,8 @@ func NewItem(name string, useWith bool, pickable bool, imagePath string) Item {
 		Pickable: pickable,
 	}
 
-	if imagePath != "" {
-		data.Image = utils.ReadData(imagePath)
+	if len(sprite) != 0 {
+		data.Image = sprite
 
 		img, _, err := image.Decode(bytes.NewReader(data.Image))
 		if err != nil {
