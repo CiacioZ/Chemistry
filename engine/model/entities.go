@@ -2,9 +2,10 @@ package model
 
 import (
 	"bytes"
-	"chemistry/engine/utils"
 	"image"
 	"log"
+
+	"chemistry/engine/utils"
 
 	"github.com/google/uuid"
 )

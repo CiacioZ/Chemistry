@@ -2,7 +2,7 @@ package logic
 
 import (
 	"bytes"
-	"chemistry-engine/model"
+	"chemistry/engine/model"
 	"fmt"
 	"image"
 	"image/color"
