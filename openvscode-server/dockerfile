@@ -1,0 +1,32 @@
+#
+# Go Dockerfile
+#
+# https://github.com/dockerfile/go
+#
+
+# Pull base image.
+FROM gitpod/openvscode-server:latest
+
+USER root
+
+# Install Go
+RUN \
+  mkdir -p /goroot && \
+  curl https://storage.googleapis.com/golang/go1.23.2.linux-amd64.tar.gz | tar xvzf - -C /goroot --strip-components=1
+
+# Set environment variables.
+ENV GOROOT=/goroot
+ENV GOPATH=/gopath
+ENV PATH=$GOROOT/bin:$GOPATH/bin:$PATH
+
+RUN go install -v golang.org/x/tools/gopls@latest
+
+RUN go install honnef.co/go/tools/cmd/staticcheck@latest
+
+RUN go install github.com/go-delve/delve/cmd/dlv@latest
+
+RUN apt-get update
+
+RUN apt install -y build-essential
+
+RUN apt-get install -y libx11-dev libxrandr-dev libxcursor-dev libxi-dev libxinerama-dev libxxf86vm-dev libgl1-mesa-dev xvfb
