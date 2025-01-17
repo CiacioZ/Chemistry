@@ -1,0 +1,6 @@
+
+editor/.next/
+editor/node_modules/
+
+.DS_Store
+editor/.DS_Store
