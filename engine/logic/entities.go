@@ -16,6 +16,7 @@ type GameData struct {
 	Character map[string]model.Character `json:"character"`
 	Triggers  map[string]model.Action    `json:"triggers"`
 	Scripts   map[string]func()
+	Fonts     map[string][]byte
 }
 
 type GameState struct {
@@ -37,6 +38,8 @@ type GameState struct {
 	lastUpdated                    time.Time
 	yOrderedEntities               []string
 	cursorOnItem                   string
+	textToDraw                     string
+	textDrawn                      time.Time
 }
 
 func (gs *GameState) CalculateYOrderedEntities() {
@@ -185,6 +188,11 @@ func (g *Game) GetCurrentCharacterAnimation() (string, int) {
 	return g.state.currentCharacterAnimation, g.state.currentCharacterAnimationFrame
 }
 
+func (g *Game) DrawText(sentence string) {
+	g.state.textToDraw = sentence
+	g.state.textDrawn = time.Now()
+}
+
 func initGameData() GameData {
 	return GameData{
 		Verbs: []model.Verb{
@@ -200,6 +208,7 @@ func initGameData() GameData {
 		Character: make(map[string]model.Character),
 		Triggers:  make(map[string]model.Action),
 		Scripts:   make(map[string]func()),
+		Fonts:     make(map[string][]byte),
 	}
 }
 
@@ -222,6 +231,8 @@ func initGameState() GameState {
 		lastUpdated:                    time.Time{},
 		yOrderedEntities:               make([]string, 0),
 		cursorOnItem:                   "",
+		textToDraw:                     "",
+		textDrawn:                      time.Time{},
 	}
 }
 
@@ -235,6 +246,10 @@ func calculateActionTrigger(action model.Action) string {
 	return trigger
 }
 
+func (g *Game) AddFont(name string, font []byte) {
+	g.data.Fonts[name] = font
+}
+
 func (g *Game) AddCharacter(character model.Character) {
 	g.data.Character[character.ID] = character
 }
@@ -245,6 +260,16 @@ func (g *Game) AddItem(item model.Item) {
 
 func (g *Game) AddLocation(location model.Location) {
 	g.data.Locations[location.ID] = location
+
+	for itemID, item := range location.Items {
+
+		moveToSomething := model.NewAction(model.SOMEONE, model.MOVE_TO, itemID, model.NOTHING, model.SOMEWHERE, model.DoNothing, func() {
+			g.moveTo(item.InteractionPoint.X, item.InteractionPoint.Y)
+		}, model.DoNothing)
+		g.AddAction(moveToSomething)
+
+	}
+
 }
 
 func (g *Game) AddAction(action model.Action) {
@@ -253,7 +278,7 @@ func (g *Game) AddAction(action model.Action) {
 }
 
 func (g *Game) ExecuteAction(inputTrigger string) {
-	//inputTrigger := g.parseInput(input)
+
 	if inputTrigger == "" {
 		return
 	}
@@ -316,7 +341,7 @@ func (g *Game) ExecuteAction(inputTrigger string) {
 		actionToExecute.ExecuteAction()
 
 	default:
-		fmt.Println(fmt.Sprintf("Invalid verb '%s'", verb))
+		fmt.Printf("Invalid verb '%s'", verb)
 	}
 
 	actionToExecute.ExecuteAfter()
@@ -324,82 +349,59 @@ func (g *Game) ExecuteAction(inputTrigger string) {
 
 func (g *Game) getActionToExecute(subject string, verb model.Verb, mainObject string, secondObject string, location string) model.Action {
 	inputTrigger := composeTrigger(subject, verb, mainObject, secondObject, location)
-	fmt.Println("Search: ", inputTrigger)
+
 	if action, exists := g.data.Triggers[inputTrigger]; exists {
-		fmt.Println("Found: ", inputTrigger)
 		return action
 	}
 
 	inputTrigger = composeTrigger(subject, verb, mainObject, secondObject, model.SOMEWHERE)
-	fmt.Println("Search: ", inputTrigger)
 	if action, exists := g.data.Triggers[inputTrigger]; exists {
-		fmt.Println("Found: ", inputTrigger)
 		return action
 	}
 
 	switch secondObject {
 	case model.SOMETHING:
 		inputTrigger = composeTrigger(subject, verb, mainObject, model.SOMETHING, model.SOMEWHERE)
-		fmt.Println("Search: ", inputTrigger)
 		if action, exists := g.data.Triggers[inputTrigger]; exists {
-			fmt.Println("Found: ", inputTrigger)
 			return action
 		}
 
 		inputTrigger = composeTrigger(subject, verb, model.SOMETHING, model.SOMETHING, model.SOMEWHERE)
-		fmt.Println("Search: ", inputTrigger)
+
 		if action, exists := g.data.Triggers[inputTrigger]; exists {
-			fmt.Println("Found: ", inputTrigger)
 			return action
 		}
 
 		inputTrigger = composeTrigger(model.SOMEONE, verb, model.SOMETHING, model.SOMETHING, model.SOMEWHERE)
-		fmt.Println("Search: ", inputTrigger)
+
 		if action, exists := g.data.Triggers[inputTrigger]; exists {
-			fmt.Println("Found: ", inputTrigger)
 			return action
 		}
 	case model.NOTHING:
 		inputTrigger = composeTrigger(subject, verb, mainObject, model.NOTHING, model.SOMEWHERE)
-		fmt.Println("Search: ", inputTrigger)
+
 		if action, exists := g.data.Triggers[inputTrigger]; exists {
-			fmt.Println("Found: ", inputTrigger)
 			return action
 		}
 
 		inputTrigger = composeTrigger(subject, verb, model.SOMETHING, model.NOTHING, model.SOMEWHERE)
-		fmt.Println("Search: ", inputTrigger)
+
 		if action, exists := g.data.Triggers[inputTrigger]; exists {
-			fmt.Println("Found: ", inputTrigger)
 			return action
 		}
 
 		inputTrigger = composeTrigger(model.SOMEONE, verb, model.SOMETHING, model.NOTHING, model.SOMEWHERE)
-		fmt.Println("Search: ", inputTrigger)
+
 		if action, exists := g.data.Triggers[inputTrigger]; exists {
-			fmt.Println("Found: ", inputTrigger)
+			return action
+		}
+
+		inputTrigger = composeTrigger(model.SOMEONE, verb, mainObject, model.NOTHING, model.SOMEWHERE)
+
+		if action, exists := g.data.Triggers[inputTrigger]; exists {
 			return action
 		}
 	}
 
 	panic("Action not found")
 }
-
-/*
-func (g *Game) parseInput(input string) string {
-	inputParts := strings.Split(input, " ")
-	if len(inputParts) < 2 {
-		fmt.Println(fmt.Sprintf("Invalid input '%s'", input))
-		return ""
-	}
-
-	verb := model.Verb(inputParts[0])
-	mainObject := inputParts[1]
-	secondObject := model.NOTHING
-	if len(inputParts) > 2 {
-		secondObject = inputParts[2]
-	}
-
-	return composeTrigger(g.state.currentCharacter.ID, verb, mainObject, secondObject, g.state.currentLocation.ID)
-}
-*/

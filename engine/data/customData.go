@@ -5,14 +5,20 @@ import (
 	"chemistry/engine/model"
 	"chemistry/engine/utils"
 	"embed"
-	"fmt"
 	"image"
+)
+
+var (
+	//go:embed fonts/lucasarts-scumm-outline.otf
+	CharactersFont []byte
 )
 
 //go:embed images/*.*
 var folderData embed.FS
 
 func InitCustomData(game *logic.Game) {
+
+	game.AddFont("MonkeyIsland", CharactersFont)
 
 	mainChar := model.NewCharacter("Guybrush", "")
 	mainChar.Animations[string(model.IDLE_FACE_RIGHT)] = utils.ReadMultipleData(folderData, []string{"images/SLR.png"})
@@ -110,19 +116,19 @@ func InitCustomData(game *logic.Game) {
 
 	//CUSTOM ACTIONS
 	lookAt1 := model.NewAction(mainChar.ID, model.LOOK_AT, itemNote.ID, model.NOTHING, model.SOMEWHERE, model.DoNothing, func() {
-		fmt.Println("La nota dice: 'Usa la chiave sulla porta'")
+		game.DrawText("La nota dice: 'Usa la chiave sulla porta'")
 	}, model.DoNothing)
 	game.AddAction(lookAt1)
 
 	lookAt2 := model.NewAction(mainChar.ID, model.LOOK_AT, itemKey.ID, model.NOTHING, model.SOMEWHERE, model.DoNothing, func() {
-		fmt.Println("Sembra la chiave di una porta")
+		game.DrawText("Sembra la chiave di una porta")
 	}, model.DoNothing)
 	game.AddAction(lookAt2)
 
 	game.SetFlag("door_open", false)
 	moveTo1 := model.NewAction(mainChar.ID, model.MOVE_TO, itemDoorToLocation2.ID, model.NOTHING, model.SOMEWHERE, model.DoNothing, func() {
 		if !game.GetFlag("door_open") {
-			fmt.Println("La porta è chiusa")
+			game.DrawText("La porta è chiusa")
 		}
 	}, model.DoNothing)
 	game.AddAction(moveTo1)
@@ -130,9 +136,9 @@ func InitCustomData(game *logic.Game) {
 	useKeyOnDoor1 := model.NewAction(mainChar.ID, model.USE, itemKey.ID, itemDoorToLocation2.ID, model.SOMEWHERE, model.DoNothing, func() {
 		if !game.GetFlag("door_open") {
 			game.SetFlag("door_open", true)
-			fmt.Println("La porta si è aperta!")
+			game.DrawText("La porta si è aperta!")
 		} else {
-			fmt.Println("La porta è già aperta")
+			game.DrawText("La porta è già aperta")
 		}
 	}, model.DoNothing)
 	game.AddAction(useKeyOnDoor1)

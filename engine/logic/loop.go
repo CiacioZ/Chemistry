@@ -15,6 +15,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
@@ -32,7 +33,14 @@ func NewGame() Game {
 
 func (g *Game) Update() error {
 
-	g.state.cursorOnItem = g.itemAt(ebiten.CursorPosition())
+	if g.state.textToDraw != "" {
+		textDrawnElapsed := time.Since(g.state.textDrawn).Milliseconds()
+		if textDrawnElapsed >= 2000 {
+			g.state.textToDraw = ""
+		}
+	}
+
+	defer g.state.CalculateYOrderedEntities()
 
 	switch g.GetCurrentState() {
 	case model.EXECUTING_ACTION:
@@ -133,27 +141,60 @@ func (g *Game) Update() error {
 		}
 	}
 
+	g.state.cursorOnItem = g.itemAt(ebiten.CursorPosition())
+
 	switch {
 	case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft):
 
 		switch g.GetCurrentState() {
 		case model.IDLE:
+
+			if g.state.cursorOnItem != "" {
+
+				selectedItemId := g.state.cursorOnItem
+				item := g.GetItem(selectedItemId)
+				if item.UseWith && g.GetCurrentVerb() == model.USE {
+					g.state.mainItemID = selectedItemId
+					g.SetCurrentState(model.WAITING_ACTION)
+				} else {
+					trigger := composeTrigger(g.state.currentCharacter.ID, g.state.currentVerb, g.state.cursorOnItem, model.NOTHING, g.state.currentLocation.ID)
+					g.ExecuteAction(trigger)
+					return nil
+				}
+			}
+
 			switch g.GetCurrentVerb() {
 			case model.MOVE_TO:
 				x, y := ebiten.CursorPosition()
 
 				g.moveTo(x, y)
+			default:
+				g.SetCurrentVerb(model.MOVE_TO)
 			}
 		case model.WAITING_ACTION:
-			//TODO:
-			// Check if click on something
-			// If so create action string and add to state array of action to be executed
+
+			if g.state.cursorOnItem != "" {
+
+				selectedItemId := g.state.cursorOnItem
+				g.state.secondItemID = selectedItemId
+
+				trigger := composeTrigger(g.state.currentCharacter.ID, g.state.currentVerb, g.state.cursorOnItem, selectedItemId, g.state.currentLocation.ID)
+				g.ExecuteAction(trigger)
+
+				g.state.mainItemID = ""
+				g.state.secondItemID = ""
+				g.SetCurrentState(model.IDLE)
+				g.SetCurrentVerb(model.MOVE_TO)
+				return nil
+			}
 
 		case model.EXECUTING_ACTION:
-			//TODO: Stop action
-			x, y := ebiten.CursorPosition()
 
-			g.moveTo(x, y)
+			switch g.GetCurrentVerb() {
+			case model.MOVE_TO:
+				x, y := ebiten.CursorPosition()
+				g.moveTo(x, y)
+			}
 
 		}
 	case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonRight):
@@ -176,26 +217,46 @@ func (g *Game) Update() error {
 		return ebiten.Termination
 	}
 
-	g.state.CalculateYOrderedEntities()
-
 	return nil
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
+
 	// Disegna lo sfondo della location corrente (se presente)
 	g.drawBackground(screen, g.GetCurrentLocation())
 
+	currentCharacter := g.GetCurrentCharacter()
+
 	// Disegna tutte le entità nell'ordine calcolato
 	for _, entityID := range g.state.yOrderedEntities {
-		if entityID == g.state.currentCharacter.ID {
+		if entityID == currentCharacter.ID {
 			// Disegna il personaggio del giocatore
-			g.drawCharacter(screen, g.state.currentCharacter, g.state.currentCharacterPosition)
+			g.drawCharacter(screen, currentCharacter)
 		} else {
 			// Disegna l'oggetto
 			item := g.data.Items[entityID]
-			itemLocation := g.state.currentLocation.Items[entityID]
+			itemLocation := g.GetCurrentLocation().Items[entityID]
 			g.drawItem(screen, item, itemLocation)
 		}
+	}
+
+	// Draw some text
+	if g.state.textToDraw != "" {
+
+		s, err := text.NewGoTextFaceSource(bytes.NewReader(g.data.Fonts["MonkeyIsland"]))
+		if err != nil {
+			log.Fatal(err)
+		}
+		fontFaceSource := s
+
+		op := &text.DrawOptions{}
+		op.GeoM.Translate(120, 120)
+		op.LineSpacing = 30
+		//op.ColorScale.ScaleWithColor()
+		text.Draw(screen, g.state.textToDraw, &text.GoTextFace{
+			Source: fontFaceSource,
+			Size:   20,
+		}, op)
 	}
 
 	// Disegna l'interfaccia utente e le informazioni di debug
@@ -214,7 +275,7 @@ func (g *Game) drawBackground(screen *ebiten.Image, location model.Location) {
 	}
 }
 
-func (g *Game) drawCharacter(screen *ebiten.Image, character model.Character, position image.Point) {
+func (g *Game) drawCharacter(screen *ebiten.Image, character model.Character) {
 	animation, frame := g.GetCurrentCharacterAnimation()
 	characterFrameImage := character.Animations[animation][frame]
 
@@ -237,7 +298,7 @@ func (g *Game) drawCharacter(screen *ebiten.Image, character model.Character, po
 func (g *Game) drawItem(screen *ebiten.Image, item model.Item, itemLocation model.ItemLocation) {
 	// TODO: Implementa il caricamento e il disegno dell'immagine dell'oggetto
 	// Per ora, disegniamo un placeholder
-	if item.Image == nil || len(item.Image) == 0 {
+	if len(item.Image) == 0 {
 		vector.DrawFilledCircle(screen, float32(itemLocation.LocationPoint.X), float32(itemLocation.LocationPoint.Y), 3, color.RGBA{255, 0, 0, 255}, false)
 	} else {
 		itemImage, _, err := image.Decode(bytes.NewReader(item.Image))
