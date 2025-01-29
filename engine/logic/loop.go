@@ -33,25 +33,43 @@ func NewGame() Game {
 
 func (g *Game) Update() error {
 
-	if g.state.textToDraw != "" {
+	if len(g.state.textToDraw) > 0 {
 		textDrawnElapsed := time.Since(g.state.textDrawn).Milliseconds()
 		if textDrawnElapsed >= 2000 {
-			g.state.textToDraw = ""
+			if len(g.state.textToDraw) == 1 {
+				g.state.textToDraw = make([]string, 0)
+			} else {
+				g.state.textToDraw = g.state.textToDraw[1:]
+			}
+			g.state.textDrawn = time.Now()
 		}
+	} else {
+		g.state.textDrawn = time.Now()
 	}
 
 	defer g.state.CalculateYOrderedEntities()
 
 	switch g.GetCurrentState() {
 	case model.EXECUTING_ACTION:
-		//TODO:
-		// Update animation etc. example: g.SetCurrentCharacterPosition(g.state.path[len(g.state.path)-1])
-		// If action is finished continue with the next action in the state array otherwise state == IDLE
+
 		triggerAction := g.state.watingActions[0]
 		triggerActionParts := strings.Split(triggerAction, ".")
 		currentActionVerb := model.Verb(triggerActionParts[1])
 		switch currentActionVerb {
 		case model.MOVE_TO:
+
+			if triggerActionParts[3] == model.NOTHING {
+				g.ExecuteAction(g.state.watingActions[0])
+				if len(g.state.watingActions) > 1 {
+					g.state.watingActions = g.state.watingActions[1:]
+					return nil
+				} else {
+					g.SetCurrentState(model.IDLE)
+					g.state.watingActions = make([]string, 0)
+				}
+				return nil
+			}
+
 			start := triggerActionParts[2]
 			startParts := strings.Split(start, ":")
 			startX, _ := strconv.Atoi(startParts[0])
@@ -62,12 +80,35 @@ func (g *Game) Update() error {
 			destinationX, _ := strconv.Atoi(destinationParts[0])
 			destinationY, _ := strconv.Atoi(destinationParts[1])
 			position := g.GetCurrentCharacterPosition()
+
 			if position.X == destinationX && position.Y == destinationY {
-				g.state.pathPointIndex = 0
-				switch len(g.state.watingActions) {
-				case 1:
-					g.state.watingActions = make([]string, 0)
+				if len(g.state.watingActions) > 1 {
+
+					triggeParts := strings.Split(g.state.watingActions[1], ".")
+					if triggeParts[1] == string(model.MOVE_TO) && triggeParts[3] != model.NOTHING {
+						g.state.pathPointIndex = 0
+						g.state.watingActions = g.state.watingActions[1:]
+					} else {
+						g.state.watingActions = g.state.watingActions[1:]
+
+						switch g.GetCurrentCharacterDirection() {
+						case model.DOWN:
+							g.SetCurrentCharacterAnimationAtFrame(string(model.IDLE_FACE_DOWN), 0)
+						case model.RIGHT:
+							g.SetCurrentCharacterAnimationAtFrame(string(model.IDLE_FACE_RIGHT), 0)
+						case model.LEFT:
+							g.SetCurrentCharacterAnimationAtFrame(string(model.IDLE_FACE_LEFT), 0)
+						case model.UP:
+							g.SetCurrentCharacterAnimationAtFrame(string(model.IDLE_FACE_UP), 0)
+						}
+
+						return nil
+					}
+
+				} else {
 					g.SetCurrentState(model.IDLE)
+					g.state.watingActions = make([]string, 0)
+
 					switch g.GetCurrentCharacterDirection() {
 					case model.DOWN:
 						g.SetCurrentCharacterAnimationAtFrame(string(model.IDLE_FACE_DOWN), 0)
@@ -78,65 +119,74 @@ func (g *Game) Update() error {
 					case model.UP:
 						g.SetCurrentCharacterAnimationAtFrame(string(model.IDLE_FACE_UP), 0)
 					}
-				default:
-					g.state.watingActions = g.state.watingActions[1:]
-					g.state.pathPointIndex = 0
+
+					return nil
 				}
+			} else {
+
+				if g.state.pathPointIndex == 0 {
+					angle := math.Atan2(float64(destinationY-startY), float64(destinationX-startX)) * 180 / math.Pi
+
+					switch {
+					case angle >= -45 && angle <= 45:
+						if g.GetCurrentCharacterDirection() != model.RIGHT {
+							g.SetCurrentCharacterDirection(model.RIGHT)
+							g.SetCurrentCharacterAnimationFrame(0)
+						}
+
+						g.SetCurrentCharacterAnimation(string(model.WALK_LEFT_TO_RIGHT))
+
+					case angle > 45 && angle < 135:
+						if g.GetCurrentCharacterDirection() != model.DOWN {
+							g.SetCurrentCharacterDirection(model.DOWN)
+							g.SetCurrentCharacterAnimationFrame(0)
+						}
+
+						g.SetCurrentCharacterAnimation(string(model.WALK_UP_TO_DOWN))
+
+					case angle >= 135 || angle <= -135:
+						if g.GetCurrentCharacterDirection() != model.LEFT {
+							g.SetCurrentCharacterDirection(model.LEFT)
+							g.SetCurrentCharacterAnimationFrame(0)
+						}
+
+						g.SetCurrentCharacterAnimation(string(model.WALK_RIGHT_TO_LEFT))
+
+					case angle > -135 && angle < -45:
+						if g.GetCurrentCharacterDirection() != model.UP {
+							g.SetCurrentCharacterDirection(model.UP)
+							g.SetCurrentCharacterAnimationFrame(0)
+						}
+
+						g.SetCurrentCharacterAnimation(string(model.WALK_DOWN_TO_UP))
+
+					}
+				}
+
+				elapsed := time.Since(g.state.lastUpdated).Milliseconds()
+				if elapsed >= 96 {
+					g.state.lastUpdated = time.Now()
+					g.AdvanceCurrentAnimationFrame()
+				}
+
+				points := model.CalculateLine(startX, startY, destinationX, destinationY)
+				if len(points) > 0 {
+					point := points[g.state.pathPointIndex]
+
+					g.SetCurrentCharacterPosition(point)
+					g.state.pathPointIndex++
+
+				}
+			}
+
+		default:
+			g.ExecuteAction(g.state.watingActions[0])
+			if len(g.state.watingActions) > 1 {
+				g.state.watingActions = g.state.watingActions[1:]
 				return nil
-			}
-
-			if g.state.pathPointIndex == 0 {
-				angle := math.Atan2(float64(destinationY-startY), float64(destinationX-startX)) * 180 / math.Pi
-
-				switch {
-				case angle >= -45 && angle <= 45:
-					if g.GetCurrentCharacterDirection() != model.RIGHT {
-						g.SetCurrentCharacterDirection(model.RIGHT)
-						g.SetCurrentCharacterAnimationFrame(0)
-					}
-
-					g.SetCurrentCharacterAnimation(string(model.WALK_LEFT_TO_RIGHT))
-
-				case angle > 45 && angle < 135:
-					if g.GetCurrentCharacterDirection() != model.DOWN {
-						g.SetCurrentCharacterDirection(model.DOWN)
-						g.SetCurrentCharacterAnimationFrame(0)
-					}
-
-					g.SetCurrentCharacterAnimation(string(model.WALK_UP_TO_DOWN))
-
-				case angle >= 135 || angle <= -135:
-					if g.GetCurrentCharacterDirection() != model.LEFT {
-						g.SetCurrentCharacterDirection(model.LEFT)
-						g.SetCurrentCharacterAnimationFrame(0)
-					}
-
-					g.SetCurrentCharacterAnimation(string(model.WALK_RIGHT_TO_LEFT))
-
-				case angle > -135 && angle < -45:
-					if g.GetCurrentCharacterDirection() != model.UP {
-						g.SetCurrentCharacterDirection(model.UP)
-						g.SetCurrentCharacterAnimationFrame(0)
-					}
-
-					g.SetCurrentCharacterAnimation(string(model.WALK_DOWN_TO_UP))
-
-				}
-			}
-
-			elapsed := time.Since(g.state.lastUpdated).Milliseconds()
-			if elapsed >= 96 {
-				g.state.lastUpdated = time.Now()
-				g.AdvanceCurrentAnimationFrame()
-			}
-
-			points := model.CalculateLine(startX, startY, destinationX, destinationY)
-			if len(points) > 0 {
-				point := points[g.state.pathPointIndex]
-
-				g.SetCurrentCharacterPosition(point)
-				g.state.pathPointIndex++
-
+			} else {
+				g.SetCurrentState(model.IDLE)
+				g.state.watingActions = make([]string, 0)
 			}
 		}
 	}
@@ -158,7 +208,11 @@ func (g *Game) Update() error {
 					g.SetCurrentState(model.WAITING_ACTION)
 				} else {
 					trigger := composeTrigger(g.state.currentCharacter.ID, g.state.currentVerb, g.state.cursorOnItem, model.NOTHING, g.state.currentLocation.ID)
-					g.ExecuteAction(trigger)
+					location := g.GetCurrentLocation()
+					g.moveTo(location.Items[item.ID].InteractionPoint.X, location.Items[item.ID].InteractionPoint.Y)
+
+					g.state.watingActions = append(g.state.watingActions, trigger)
+
 					return nil
 				}
 			}
@@ -240,8 +294,16 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		}
 	}
 
-	// Draw some text
-	if g.state.textToDraw != "" {
+	// Scrive eventuali code che il personaggio deve dire
+	g.DrawText(screen, currentCharacter)
+
+	// Disegna l'interfaccia utente e le informazioni di debug
+	g.drawUI(screen)
+}
+
+func (g *Game) DrawText(screen *ebiten.Image, currentCharacter model.Character) {
+
+	if len(g.state.textToDraw) > 0 {
 
 		standard, err := text.NewGoTextFaceSource(bytes.NewReader(g.data.Fonts["MonkeyIsland"]))
 		if err != nil {
@@ -266,7 +328,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		opRegular.GeoM.Translate(120, 120)
 		//opRegular.LineSpacing = 30
 		opRegular.ColorScale.ScaleWithColor(talkColor)
-		text.Draw(screen, g.state.textToDraw, &text.GoTextFace{
+		text.Draw(screen, g.state.textToDraw[0], &text.GoTextFace{
 			Source: fontFaceSource,
 			Size:   12,
 		}, opRegular)
@@ -275,14 +337,12 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		opOutline.GeoM.Translate(120, 120)
 		//opOutline.LineSpacing = 30
 		opOutline.ColorScale.ScaleWithColor(color.White)
-		text.Draw(screen, g.state.textToDraw, &text.GoTextFace{
+		text.Draw(screen, g.state.textToDraw[0], &text.GoTextFace{
 			Source: fontFaceOutlineSource,
 			Size:   12,
 		}, opOutline)
 	}
 
-	// Disegna l'interfaccia utente e le informazioni di debug
-	g.drawUI(screen)
 }
 
 func (g *Game) drawBackground(screen *ebiten.Image, location model.Location) {
@@ -376,7 +436,7 @@ func (g *Game) moveTo(x int, y int) {
 	path := g.state.pathFinder.Path(g.GetCurrentCharacterPosition(), destination)
 	g.state.watingActions = make([]string, 0)
 	for i := 1; i < len(path); i++ {
-		trigger := composeTrigger(g.state.currentCharacter.ID, g.state.currentVerb, fmt.Sprintf("%d:%d", path[i-1].X, path[i-1].Y), fmt.Sprintf("%d:%d", path[i].X, path[i].Y), g.state.currentLocation.ID)
+		trigger := composeTrigger(g.state.currentCharacter.ID, model.MOVE_TO, fmt.Sprintf("%d:%d", path[i-1].X, path[i-1].Y), fmt.Sprintf("%d:%d", path[i].X, path[i].Y), g.state.currentLocation.ID)
 		g.state.watingActions = append(g.state.watingActions, trigger)
 	}
 	g.state.pathPointIndex = 0

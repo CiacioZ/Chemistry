@@ -38,7 +38,7 @@ type GameState struct {
 	lastUpdated                    time.Time
 	yOrderedEntities               []string
 	cursorOnItem                   string
-	textToDraw                     string
+	textToDraw                     []string
 	textDrawn                      time.Time
 }
 
@@ -188,9 +188,8 @@ func (g *Game) GetCurrentCharacterAnimation() (string, int) {
 	return g.state.currentCharacterAnimation, g.state.currentCharacterAnimationFrame
 }
 
-func (g *Game) DrawText(sentence string) {
-	g.state.textToDraw = sentence
-	g.state.textDrawn = time.Now()
+func (g *Game) SaySomething(sentence string) {
+	g.state.textToDraw = append(g.state.textToDraw, sentence)
 }
 
 func initGameData() GameData {
@@ -231,7 +230,7 @@ func initGameState() GameState {
 		lastUpdated:                    time.Time{},
 		yOrderedEntities:               make([]string, 0),
 		cursorOnItem:                   "",
-		textToDraw:                     "",
+		textToDraw:                     make([]string, 0),
 		textDrawn:                      time.Time{},
 	}
 }
@@ -260,16 +259,6 @@ func (g *Game) AddItem(item model.Item) {
 
 func (g *Game) AddLocation(location model.Location) {
 	g.data.Locations[location.ID] = location
-
-	for itemID, item := range location.Items {
-
-		moveToSomething := model.NewAction(model.SOMEONE, model.MOVE_TO, itemID, model.NOTHING, model.SOMEWHERE, model.DoNothing, func() {
-			g.moveTo(item.InteractionPoint.X, item.InteractionPoint.Y)
-		}, model.DoNothing)
-		g.AddAction(moveToSomething)
-
-	}
-
 }
 
 func (g *Game) AddAction(action model.Action) {
@@ -403,5 +392,5 @@ func (g *Game) getActionToExecute(subject string, verb model.Verb, mainObject st
 		}
 	}
 
-	panic("Action not found")
+	return model.NewAction(subject, verb, mainObject, secondObject, location, model.DoNothing, model.DoNothing, model.DoNothing)
 }

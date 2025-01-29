@@ -124,19 +124,20 @@ func InitCustomData(game *logic.Game) {
 
 	//CUSTOM ACTIONS
 	lookAt1 := model.NewAction(mainChar.ID, model.LOOK_AT, itemNote.ID, model.NOTHING, model.SOMEWHERE, model.DoNothing, func() {
-		game.DrawText("La nota dice: 'Usa la chiave sulla porta'")
+		game.SaySomething("La nota dice: 'Usa la chiave sulla porta'")
+		game.SaySomething("mmh ci potevo anche arrivare da solo...")
 	}, model.DoNothing)
 	game.AddAction(lookAt1)
 
 	lookAt2 := model.NewAction(mainChar.ID, model.LOOK_AT, itemKey.ID, model.NOTHING, model.SOMEWHERE, model.DoNothing, func() {
-		game.DrawText("Sembra la chiave di una porta")
+		game.SaySomething("Sembra la chiave di una porta")
 	}, model.DoNothing)
 	game.AddAction(lookAt2)
 
 	game.SetFlag("door_open", false)
 	moveTo1 := model.NewAction(mainChar.ID, model.MOVE_TO, itemDoorToLocation2.ID, model.NOTHING, model.SOMEWHERE, model.DoNothing, func() {
 		if !game.GetFlag("door_open") {
-			game.DrawText("La porta è chiusa")
+			game.SaySomething("La porta è chiusa")
 		}
 	}, model.DoNothing)
 	game.AddAction(moveTo1)
@@ -144,9 +145,9 @@ func InitCustomData(game *logic.Game) {
 	useKeyOnDoor1 := model.NewAction(mainChar.ID, model.USE, itemKey.ID, itemDoorToLocation2.ID, model.SOMEWHERE, model.DoNothing, func() {
 		if !game.GetFlag("door_open") {
 			game.SetFlag("door_open", true)
-			game.DrawText("La porta si è aperta!")
+			game.SaySomething("La porta si è aperta!")
 		} else {
-			game.DrawText("La porta è già aperta")
+			game.SaySomething("La porta è già aperta")
 		}
 	}, model.DoNothing)
 	game.AddAction(useKeyOnDoor1)
