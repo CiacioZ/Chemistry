@@ -243,20 +243,42 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	// Draw some text
 	if g.state.textToDraw != "" {
 
-		s, err := text.NewGoTextFaceSource(bytes.NewReader(g.data.Fonts["MonkeyIsland"]))
+		standard, err := text.NewGoTextFaceSource(bytes.NewReader(g.data.Fonts["MonkeyIsland"]))
 		if err != nil {
 			log.Fatal(err)
 		}
-		fontFaceSource := s
+		fontFaceSource := standard
 
-		op := &text.DrawOptions{}
-		op.GeoM.Translate(120, 120)
-		op.LineSpacing = 30
-		//op.ColorScale.ScaleWithColor()
+		outline, err := text.NewGoTextFaceSource(bytes.NewReader(g.data.Fonts["MonkeyIslandOutline"]))
+		if err != nil {
+			log.Fatal(err)
+		}
+		fontFaceOutlineSource := outline
+
+		talkColor := color.RGBA{
+			R: currentCharacter.TalkColor.R,
+			G: currentCharacter.TalkColor.G,
+			B: currentCharacter.TalkColor.B,
+			A: 0,
+		}
+
+		opRegular := &text.DrawOptions{}
+		opRegular.GeoM.Translate(120, 120)
+		//opRegular.LineSpacing = 30
+		opRegular.ColorScale.ScaleWithColor(talkColor)
 		text.Draw(screen, g.state.textToDraw, &text.GoTextFace{
 			Source: fontFaceSource,
-			Size:   20,
-		}, op)
+			Size:   12,
+		}, opRegular)
+
+		opOutline := &text.DrawOptions{}
+		opOutline.GeoM.Translate(120, 120)
+		//opOutline.LineSpacing = 30
+		opOutline.ColorScale.ScaleWithColor(color.White)
+		text.Draw(screen, g.state.textToDraw, &text.GoTextFace{
+			Source: fontFaceOutlineSource,
+			Size:   12,
+		}, opOutline)
 	}
 
 	// Disegna l'interfaccia utente e le informazioni di debug

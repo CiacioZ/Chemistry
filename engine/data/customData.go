@@ -9,8 +9,11 @@ import (
 )
 
 var (
-	//go:embed fonts/lucasarts-scumm-outline.otf
+	//go:embed fonts/MonkeyIslandStandard.ttf
 	CharactersFont []byte
+
+	//go:embed fonts/MonkeyIslandOutline.ttf
+	CharactersOutlineFont []byte
 )
 
 //go:embed images/*.*
@@ -19,8 +22,13 @@ var folderData embed.FS
 func InitCustomData(game *logic.Game) {
 
 	game.AddFont("MonkeyIsland", CharactersFont)
+	game.AddFont("MonkeyIslandOutline", CharactersOutlineFont)
 
-	mainChar := model.NewCharacter("Guybrush", "")
+	mainChar := model.NewCharacter("Guybrush", model.Color{
+		R: 255,
+		G: 50,
+		B: 50,
+	})
 	mainChar.Animations[string(model.IDLE_FACE_RIGHT)] = utils.ReadMultipleData(folderData, []string{"images/SLR.png"})
 	mainChar.Animations[string(model.IDLE_FACE_LEFT)] = utils.ReadMultipleData(folderData, []string{"images/SRL.png"})
 	mainChar.Animations[string(model.IDLE_FACE_UP)] = utils.ReadMultipleData(folderData, []string{"images/SBU.png"})

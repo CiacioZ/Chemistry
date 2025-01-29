@@ -94,9 +94,15 @@ type Entity struct {
 
 type Character struct {
 	Entity
-	TalkColor  string
+	TalkColor  Color
 	Animations map[string][][]byte
 	Inventory  map[string]InventorySlot
+}
+
+type Color struct {
+	R uint8
+	G uint8
+	B uint8
 }
 
 type InventorySlot struct {
@@ -143,7 +149,7 @@ func (l Location) GetWalkableArea(index int) WalkableArea {
 	return l.walkableAreas[index]
 }
 
-func NewCharacter(name string, talkColor string) Character {
+func NewCharacter(name string, talkColor Color) Character {
 	data := Character{
 		Entity: Entity{
 			ID:   uuid.New().String(),
