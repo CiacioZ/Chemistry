@@ -71,10 +71,17 @@ func (p *Pathfinder) VisibilityGraph() map[image.Point][]image.Point {
 // The function returns nil if no path exists because start is outside
 // the polygon set.
 func (p *Pathfinder) Path(start, dest image.Point) []image.Point {
+
 	d := p2v(dest)
 	if !p.polygonSet.Contains(d) {
 		dest = ensureInside(p.polygonSet, v2p(p.polygonSet.ClosestPt(d)))
 	}
+
+	s := p2v(start)
+	if !p.polygonSet.Contains(s) {
+		start = ensureInside(p.polygonSet, v2p(p.polygonSet.ClosestPt(s)))
+	}
+
 	graphVertices := append(p.concaveVertices, start, dest)
 	p.visibilityGraph = visibilityGraph(p.polygonSet, graphVertices)
 	return FindPath[image.Point](p.visibilityGraph, start, dest, nodeDist, nodeDist)
