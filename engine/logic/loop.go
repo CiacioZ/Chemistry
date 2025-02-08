@@ -52,6 +52,11 @@ func (g *Game) Update() error {
 	switch g.GetCurrentState() {
 	case model.EXECUTING_ACTION:
 
+		if len(g.state.watingActions) == 0 {
+			g.SetCurrentState(model.IDLE)
+			return nil
+		}
+
 		triggerAction := g.state.watingActions[0]
 		triggerActionParts := strings.Split(triggerAction, ".")
 		currentActionVerb := model.Verb(triggerActionParts[1])
@@ -461,7 +466,11 @@ func (g *Game) moveTo(x int, y int) {
 		g.state.watingActions = append(g.state.watingActions, trigger)
 	}
 	g.state.pathPointIndex = 0
-	g.SetCurrentState(model.EXECUTING_ACTION)
+
+	if len(g.state.watingActions) > 0 {
+		g.SetCurrentState(model.EXECUTING_ACTION)
+	}
+
 }
 
 func (g *Game) GetSpriteDimensions(frameImage []byte) (int, int) {
