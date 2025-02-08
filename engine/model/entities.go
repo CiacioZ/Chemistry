@@ -149,6 +149,10 @@ func (l Location) GetWalkableArea(index int) WalkableArea {
 	return l.walkableAreas[index]
 }
 
+func (l Location) GetLayers() []Layer {
+	return l.layers
+}
+
 func NewCharacter(name string, talkColor Color) Character {
 	data := Character{
 		Entity: Entity{
@@ -163,7 +167,7 @@ func NewCharacter(name string, talkColor Color) Character {
 	return data
 }
 
-func NewLocation(name string) Location {
+func NewLocation(name string, background []byte) Location {
 	data := Location{
 		Entity: Entity{
 			ID:   uuid.New().String(),
@@ -175,6 +179,12 @@ func NewLocation(name string) Location {
 		walkableAreas: make([]WalkableArea, 0),
 		Items:         make(map[string]ItemLocation),
 	}
+
+	layerBackground := Layer{
+		Image: background,
+	}
+
+	data.layers = append(data.layers, layerBackground)
 
 	return data
 }

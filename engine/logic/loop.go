@@ -35,7 +35,7 @@ func (g *Game) Update() error {
 
 	if len(g.state.textToDraw) > 0 {
 		textDrawnElapsed := time.Since(g.state.textDrawn).Milliseconds()
-		if textDrawnElapsed >= 2000 {
+		if textDrawnElapsed >= 2500 {
 			if len(g.state.textToDraw) == 1 {
 				g.state.textToDraw = make([]string, 0)
 			} else {
@@ -174,7 +174,11 @@ func (g *Game) Update() error {
 					point := points[g.state.pathPointIndex]
 
 					g.SetCurrentCharacterPosition(point)
-					g.state.pathPointIndex++
+					g.state.pathPointIndex += 2
+
+					if g.state.pathPointIndex >= len(points) {
+						g.state.pathPointIndex = len(points) - 1
+					}
 
 				}
 			}
@@ -321,22 +325,31 @@ func (g *Game) DrawText(screen *ebiten.Image, currentCharacter model.Character) 
 			R: currentCharacter.TalkColor.R,
 			G: currentCharacter.TalkColor.G,
 			B: currentCharacter.TalkColor.B,
-			A: 0,
+			A: 255,
 		}
 
+		animation, frame := g.GetCurrentCharacterAnimation()
+		characterFrameImage := g.GetCurrentCharacter().Animations[animation][frame]
+
+		_, height := g.GetSpriteDimensions(characterFrameImage)
+
 		opRegular := &text.DrawOptions{}
-		opRegular.GeoM.Translate(120, 120)
+		opRegular.GeoM.Translate(float64(g.state.currentCharacterPosition.X), float64(g.state.currentCharacterPosition.Y-height-20))
 		//opRegular.LineSpacing = 30
 		opRegular.ColorScale.ScaleWithColor(talkColor)
+		opRegular.PrimaryAlign = text.AlignCenter
+		opRegular.SecondaryAlign = text.AlignStart
 		text.Draw(screen, g.state.textToDraw[0], &text.GoTextFace{
 			Source: fontFaceSource,
 			Size:   12,
 		}, opRegular)
 
 		opOutline := &text.DrawOptions{}
-		opOutline.GeoM.Translate(120, 120)
+		opOutline.GeoM.Translate(float64(g.state.currentCharacterPosition.X), float64(g.state.currentCharacterPosition.Y-height-20))
 		//opOutline.LineSpacing = 30
-		opOutline.ColorScale.ScaleWithColor(color.White)
+		opOutline.ColorScale.ScaleWithColor(color.Black)
+		opOutline.PrimaryAlign = text.AlignCenter
+		opOutline.SecondaryAlign = text.AlignStart
 		text.Draw(screen, g.state.textToDraw[0], &text.GoTextFace{
 			Source: fontFaceOutlineSource,
 			Size:   12,
@@ -346,6 +359,12 @@ func (g *Game) DrawText(screen *ebiten.Image, currentCharacter model.Character) 
 }
 
 func (g *Game) drawBackground(screen *ebiten.Image, location model.Location) {
+
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(0, 0)
+
+	screen.DrawImage(g.state.currentBackGround, op)
+
 	for _, polygon := range location.GetWalkableArea(0).Polygons {
 		for from, point := range polygon {
 			to := from + 1
@@ -399,14 +418,16 @@ func (g *Game) drawItem(screen *ebiten.Image, item model.Item, itemLocation mode
 }
 
 func (g *Game) drawUI(screen *ebiten.Image) {
-	if g.state.cursorOnItem != "" {
-		ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Cursor On Item: %s", g.state.cursorOnItem), 10, 150)
-	}
+	/*
+		if g.state.cursorOnItem != "" {
+			ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Cursor On Item: %s", g.state.cursorOnItem), 10, 150)
+		}
+	*/
 
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("FPS: %0.2f", ebiten.ActualFPS()), 10, 10)
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("TPS: %0.2f", ebiten.ActualTPS()), 10, 25)
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Location: %s", g.state.currentLocation.Name), 10, 40)
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Verb: %s", g.state.currentVerb), 10, 55)
+	//ebitenutil.DebugPrintAt(screen, fmt.Sprintf("FPS: %0.2f", ebiten.ActualFPS()), 10, 10)
+	//ebitenutil.DebugPrintAt(screen, fmt.Sprintf("TPS: %0.2f", ebiten.ActualTPS()), 10, 25)
+	//ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Location: %s", g.state.currentLocation.Name), 10, 40)
+	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Verb: %s", g.state.currentVerb), 10, 10)
 	// Aggiungi altre informazioni di debug secondo necessità
 }
 
@@ -424,7 +445,7 @@ func (g *Game) itemAt(x int, y int) string {
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
-	return 640, 480
+	return 960, 540
 }
 
 func (g *Game) moveTo(x int, y int) {
@@ -441,4 +462,17 @@ func (g *Game) moveTo(x int, y int) {
 	}
 	g.state.pathPointIndex = 0
 	g.SetCurrentState(model.EXECUTING_ACTION)
+}
+
+func (g *Game) GetSpriteDimensions(frameImage []byte) (int, int) {
+
+	spriteImage, _, err := image.Decode(bytes.NewReader(frameImage))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	img := ebiten.NewImageFromImage(spriteImage)
+
+	return img.Bounds().Dx(), img.Bounds().Dy()
+
 }

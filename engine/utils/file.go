@@ -2,6 +2,7 @@ package utils
 
 import (
 	"embed"
+	"fmt"
 )
 
 func ReadMultipleData(folder embed.FS, paths []string) [][]byte {
@@ -17,6 +18,10 @@ func ReadMultipleData(folder embed.FS, paths []string) [][]byte {
 func ReadData(folder embed.FS, path string) []byte {
 
 	fileData, _ := folder.ReadFile(path)
+
+	if len(fileData) == 0 {
+		panic(fmt.Sprintf("File '%s' not found", path))
+	}
 
 	return fileData
 }

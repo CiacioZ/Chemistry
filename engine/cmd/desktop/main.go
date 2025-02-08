@@ -24,7 +24,6 @@ func main() {
 
 	ebiten.SetFullscreen(true)
 	//ebiten.SetWindowSize(1920, 1080)
-	//ebiten.SetWindowTitle("Modulo Base")
 	if err := ebiten.RunGame(&game); err != nil {
 		log.Fatal(err)
 	}

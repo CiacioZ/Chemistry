@@ -1,12 +1,16 @@
 package logic
 
 import (
+	"bytes"
 	"chemistry/engine/model"
 	"fmt"
 	"image"
+	"log"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/hajimehoshi/ebiten/v2"
 )
 
 type GameData struct {
@@ -40,6 +44,7 @@ type GameState struct {
 	cursorOnItem                   string
 	textToDraw                     []string
 	textDrawn                      time.Time
+	currentBackGround              *ebiten.Image
 }
 
 func (gs *GameState) CalculateYOrderedEntities() {
@@ -97,6 +102,13 @@ func (g *Game) SetCurrentLocation(location string) {
 	locationData := g.GetLocation(location)
 	g.state.currentLocation = locationData
 	g.state.pathFinder = model.NewPathfinder(locationData.GetWalkableArea(0).Polygons)
+
+	backgroundImage, _, err := image.Decode(bytes.NewReader(locationData.GetLayers()[0].Image))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	g.state.currentBackGround = ebiten.NewImageFromImage(backgroundImage)
 }
 
 func (g *Game) GetCurrentCharacter() model.Character {
@@ -232,6 +244,7 @@ func initGameState() GameState {
 		cursorOnItem:                   "",
 		textToDraw:                     make([]string, 0),
 		textDrawn:                      time.Time{},
+		currentBackGround:              nil,
 	}
 }
 
