@@ -228,9 +228,9 @@ func (g *Game) Update() error {
 
 			switch g.GetCurrentVerb() {
 			case model.MOVE_TO:
-				x, y := ebiten.CursorPosition()
+				worldX, worldY := g.state.camera.ScreenToWorld(ebiten.CursorPosition())
 
-				g.moveTo(x, y)
+				g.moveTo(int(worldX), int(worldY))
 			default:
 				g.SetCurrentVerb(model.MOVE_TO)
 			}
@@ -280,13 +280,17 @@ func (g *Game) Update() error {
 		return ebiten.Termination
 	}
 
+	if g.state.currentCharacterPosition.X >= screenWidth/2 {
+		g.state.camera.Position[0] = float64(g.state.currentCharacterPosition.X - (screenWidth / 2))
+	}
+
 	return nil
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
 
 	// Disegna lo sfondo della location corrente (se presente)
-	g.drawBackground(screen, g.GetCurrentLocation())
+	g.drawBackground(g.state.world, g.GetCurrentLocation())
 
 	currentCharacter := g.GetCurrentCharacter()
 
@@ -294,23 +298,25 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	for _, entityID := range g.state.yOrderedEntities {
 		if entityID == currentCharacter.ID {
 			// Disegna il personaggio del giocatore
-			g.drawCharacter(screen, currentCharacter)
+			g.drawCharacter(g.state.world, currentCharacter)
 		} else {
 			// Disegna l'oggetto
 			item := g.data.Items[entityID]
 			itemLocation := g.GetCurrentLocation().Items[entityID]
-			g.drawItem(screen, item, itemLocation)
+			g.drawItem(g.state.world, item, itemLocation)
 		}
 	}
 
 	// Scrive eventuali code che il personaggio deve dire
-	g.DrawText(screen, currentCharacter)
+	g.drawText(g.state.world, currentCharacter)
 
 	// Disegna l'interfaccia utente e le informazioni di debug
-	g.drawUI(screen)
+	g.drawUI(g.state.world)
+
+	g.state.camera.Render(g.state.world, screen)
 }
 
-func (g *Game) DrawText(screen *ebiten.Image, currentCharacter model.Character) {
+func (g *Game) drawText(screen *ebiten.Image, currentCharacter model.Character) {
 
 	if len(g.state.textToDraw) > 0 {
 
@@ -366,7 +372,6 @@ func (g *Game) DrawText(screen *ebiten.Image, currentCharacter model.Character) 
 func (g *Game) drawBackground(screen *ebiten.Image, location model.Location) {
 
 	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Translate(0, 0)
 
 	screen.DrawImage(g.state.currentBackGround, op)
 
@@ -393,10 +398,11 @@ func (g *Game) drawCharacter(screen *ebiten.Image, character model.Character) {
 	img := ebiten.NewImageFromImage(frameImage)
 
 	refPoint := image.Point{
-		X: img.Bounds().Dx() / 2,
-		Y: img.Bounds().Dy(),
+		X: int(float32(img.Bounds().Dx())*2.5) / 2,
+		Y: int(float32(img.Bounds().Dy()) * 2.5),
 	}
 	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Scale(2.5, 2.5)
 	op.GeoM.Translate(float64(g.state.currentCharacterPosition.X-refPoint.X), float64(g.state.currentCharacterPosition.Y-refPoint.Y))
 	screen.DrawImage(img, op)
 }
@@ -449,8 +455,8 @@ func (g *Game) itemAt(x int, y int) string {
 	return ""
 }
 
-func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
-	return 960, 540
+func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
+	return screenWidth, screenHeight
 }
 
 func (g *Game) moveTo(x int, y int) {
