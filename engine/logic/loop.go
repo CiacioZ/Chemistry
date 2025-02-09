@@ -200,7 +200,9 @@ func (g *Game) Update() error {
 		}
 	}
 
-	g.state.cursorOnItem = g.itemAt(ebiten.CursorPosition())
+	cursorX, cursorY := g.state.camera.ScreenToWorld(ebiten.CursorPosition())
+
+	g.state.cursorOnItem = g.itemAt(int(cursorX), int(cursorY))
 
 	switch {
 	case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft):
@@ -255,8 +257,9 @@ func (g *Game) Update() error {
 
 			switch g.GetCurrentVerb() {
 			case model.MOVE_TO:
-				x, y := ebiten.CursorPosition()
-				g.moveTo(x, y)
+				worldX, worldY := g.state.camera.ScreenToWorld(ebiten.CursorPosition())
+
+				g.moveTo(int(worldX), int(worldY))
 			}
 
 		}
@@ -282,6 +285,10 @@ func (g *Game) Update() error {
 
 	if g.state.currentCharacterPosition.X >= screenWidth/2 {
 		g.state.camera.Position[0] = float64(g.state.currentCharacterPosition.X - (screenWidth / 2))
+	}
+
+	if g.state.currentCharacterPosition.Y >= screenHeight/2 {
+		g.state.camera.Position[1] = float64(g.state.currentCharacterPosition.Y - (screenHeight / 2))
 	}
 
 	return nil
@@ -352,7 +359,7 @@ func (g *Game) drawText(screen *ebiten.Image, currentCharacter model.Character) 
 		opRegular.SecondaryAlign = text.AlignStart
 		text.Draw(screen, g.state.textToDraw[0], &text.GoTextFace{
 			Source: fontFaceSource,
-			Size:   12,
+			Size:   24,
 		}, opRegular)
 
 		opOutline := &text.DrawOptions{}
@@ -363,7 +370,7 @@ func (g *Game) drawText(screen *ebiten.Image, currentCharacter model.Character) 
 		opOutline.SecondaryAlign = text.AlignStart
 		text.Draw(screen, g.state.textToDraw[0], &text.GoTextFace{
 			Source: fontFaceOutlineSource,
-			Size:   12,
+			Size:   24,
 		}, opOutline)
 	}
 
