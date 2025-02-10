@@ -283,11 +283,19 @@ func (g *Game) Update() error {
 		return ebiten.Termination
 	}
 
-	if g.state.currentCharacterPosition.X >= screenWidth/2 {
+	if g.state.currentCharacterPosition.X >= screenWidth/2 && int(g.state.camera.Position[0]+screenWidth) < g.state.currentBackGround.Bounds().Dx() {
 		g.state.camera.Position[0] = float64(g.state.currentCharacterPosition.X - (screenWidth / 2))
 	}
 
-	if g.state.currentCharacterPosition.Y >= screenHeight/2 {
+	if g.state.currentCharacterPosition.X < screenWidth/2 && int(g.state.camera.Position[0]-screenWidth) > g.state.currentBackGround.Bounds().Dx() {
+		g.state.camera.Position[0] = float64(g.state.currentCharacterPosition.X - (screenWidth / 2))
+	}
+
+	if g.state.currentCharacterPosition.Y >= screenHeight/2 && int(g.state.camera.Position[1]+screenHeight) < g.state.currentBackGround.Bounds().Dy() {
+		g.state.camera.Position[1] = float64(g.state.currentCharacterPosition.Y - (screenHeight / 2))
+	}
+
+	if g.state.currentCharacterPosition.Y < screenHeight/2 && int(g.state.camera.Position[1]-screenHeight) > g.state.currentBackGround.Bounds().Dy() {
 		g.state.camera.Position[1] = float64(g.state.currentCharacterPosition.Y - (screenHeight / 2))
 	}
 
