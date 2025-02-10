@@ -23,6 +23,7 @@ func init() {
 func main() {
 
 	ebiten.SetFullscreen(true)
+	ebiten.SetCursorMode(ebiten.CursorModeHidden)
 	//ebiten.SetWindowSize(1920, 1080)
 	if err := ebiten.RunGame(&game); err != nil {
 		log.Fatal(err)

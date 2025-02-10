@@ -80,6 +80,7 @@ type GameData struct {
 	Triggers  map[string]model.Action    `json:"triggers"`
 	Scripts   map[string]func()
 	Fonts     map[string][]byte
+	Cursors   map[string][]byte
 }
 
 type GameState struct {
@@ -105,6 +106,7 @@ type GameState struct {
 	textDrawn                      time.Time
 	world                          *ebiten.Image
 	currentBackGround              *ebiten.Image
+	currentCursor                  *ebiten.Image
 	camera                         Camera
 }
 
@@ -153,6 +155,17 @@ func (g *Game) GetCurrentVerb() model.Verb {
 
 func (g *Game) SetCurrentVerb(verb model.Verb) {
 	g.state.currentVerb = verb
+}
+
+func (g *Game) SetCurrentCursor(name string) {
+
+	cursorImage, _, err := image.Decode(bytes.NewReader(g.data.Cursors[name]))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	g.state.currentCursor = ebiten.NewImageFromImage(cursorImage)
+
 }
 
 func (g *Game) GetCurrentLocation() model.Location {
@@ -282,6 +295,7 @@ func initGameData() GameData {
 		Triggers:  make(map[string]model.Action),
 		Scripts:   make(map[string]func()),
 		Fonts:     make(map[string][]byte),
+		Cursors:   make(map[string][]byte),
 	}
 }
 
@@ -308,6 +322,7 @@ func initGameState() GameState {
 		textDrawn:                      time.Time{},
 		world:                          nil,
 		currentBackGround:              nil,
+		currentCursor:                  nil,
 		camera:                         Camera{ViewPort: f64.Vec2{screenWidth, screenHeight}},
 	}
 }
@@ -324,6 +339,10 @@ func calculateActionTrigger(action model.Action) string {
 
 func (g *Game) AddFont(name string, font []byte) {
 	g.data.Fonts[name] = font
+}
+
+func (g *Game) AddCursor(name string, cursor []byte) {
+	g.data.Cursors[name] = cursor
 }
 
 func (g *Game) AddCharacter(character model.Character) {

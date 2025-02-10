@@ -320,6 +320,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	// Disegna l'interfaccia utente e le informazioni di debug
 	g.drawUI(g.state.world)
 
+	g.drawCursor(g.state.world)
+
 	g.state.camera.Render(g.state.world, screen)
 }
 
@@ -436,6 +438,7 @@ func (g *Game) drawItem(screen *ebiten.Image, item model.Item, itemLocation mode
 }
 
 func (g *Game) drawUI(screen *ebiten.Image) {
+
 	/*
 		if g.state.cursorOnItem != "" {
 			ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Cursor On Item: %s", g.state.cursorOnItem), 10, 150)
@@ -447,6 +450,20 @@ func (g *Game) drawUI(screen *ebiten.Image) {
 	//ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Location: %s", g.state.currentLocation.Name), 10, 40)
 	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Verb: %s", g.state.currentVerb), 10, 10)
 	// Aggiungi altre informazioni di debug secondo necessità
+}
+
+func (g *Game) drawCursor(screen *ebiten.Image) {
+
+	x, y := g.state.camera.ScreenToWorld(ebiten.CursorPosition())
+
+	x -= float64(g.state.currentCursor.Bounds().Dx() / 2)
+	y -= float64(g.state.currentCursor.Bounds().Dy() / 2)
+
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(x, y)
+
+	screen.DrawImage(g.state.currentCursor, op)
+
 }
 
 func (g *Game) itemAt(x int, y int) string {

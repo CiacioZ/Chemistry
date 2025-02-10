@@ -24,6 +24,8 @@ func InitCustomData(game *logic.Game) {
 	game.AddFont("MonkeyIsland", CharactersFont)
 	game.AddFont("MonkeyIslandOutline", CharactersOutlineFont)
 
+	game.AddCursor("Cross", utils.ReadData(folderData, "images/cursors/cross.png"))
+
 	mainChar := model.NewCharacter("Guybrush", model.Color{
 		R: 255,
 		G: 50,
@@ -185,6 +187,7 @@ func InitCustomData(game *logic.Game) {
 		game.SetCurrentCharacterAnimation(string(model.IDLE_FACE_DOWN))
 		game.SetCurrentCharacterAnimationFrame(0)
 		game.SetCurrentState(model.IDLE)
+		game.SetCurrentCursor("Cross")
 	}
 	game.AddScript("intro", intro)
 
