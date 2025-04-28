@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react'; // Added useMemo
 import { useDiagramContext } from '../flow-diagram/contexts/DiagramContext';
 import { Entity } from '../flow-diagram/types'; // Removed EntityType as it's not directly used here
+import { PolygonEditor } from './PolygonEditor';
 
 // Interface for the detailed location data used in the form
 interface LocationData {
@@ -99,84 +100,7 @@ export const LocationEditor: React.FC = () => {
       <div className="w-2/3 border rounded-md shadow-sm p-4 bg-white dark:bg-gray-800 overflow-y-auto">
         <h2 className="text-xl font-semibold mb-4">Location Details</h2>
         {selectedLocationId ? (
-          <form>
-            {/* ID field - uses formData.id, which is initialized from the selected entity's value */}
-            <div className="mb-4">
-              <label htmlFor="locationId" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Location ID (Read-only)
-              </label>
-              <input
-                type="text"
-                id="locationId"
-                name="id"
-                value={formData.id || ''}
-                readOnly
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 dark:bg-gray-600 dark:border-gray-500 dark:text-gray-300"
-              />
-            </div>
-
-            {/* Name field - uses formData.name */}
-            <div className="mb-4">
-              <label htmlFor="locationName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Name
-              </label>
-              <input
-                type="text"
-                id="locationName"
-                name="name"
-                value={formData.name || ''}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              />
-            </div>
-
-            {/* Description field - uses formData.description */}
-             <div className="mb-4">
-              <label htmlFor="locationDescription" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Description
-              </label>
-              <textarea
-                id="locationDescription"
-                name="description"
-                rows={3}
-                value={formData.description || ''}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              />
-            </div>
-
-            {/* Background Image Path field - uses formData.background */}
-             <div className="mb-4">
-              <label htmlFor="locationBackground" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Background Image Path
-              </label>
-              <input
-                type="text"
-                id="locationBackground"
-                name="background"
-                value={formData.background || ''}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              />
-            </div>
-
-            {/* TODO: Aggiungere campi per WalkableAreas, Items, etc. */}
-            <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
-              Altri campi (Walkable Areas, Items, etc.) verranno aggiunti qui...
-            </p>
-
-            {/* Bottoni Azioni */}
-            <div className="flex justify-end space-x-2 mt-6">
-               {/* TODO: Implementare logica Save (should save formData associated with formData.id) */}
-               <button type="button" className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">
-                 Save Changes
-               </button>
-               {/* TODO: Implementare logica Delete (should remove the Entity with value === formData.id from context) */}
-               <button type="button" className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600">
-                 Delete Location
-               </button>
-            </div>
-          </form>
+          <PolygonEditor />
         ) : (
           <div className="text-center text-gray-500 dark:text-gray-400 mt-10">
             Select a location from the list to view or edit its details.
