@@ -19,7 +19,7 @@ export const LocationEditor: React.FC = () => {
 
   // Derive the list of location entities directly from the context
   const graphLocations = useMemo(() => {
-    return entities.filter((entity): entity is Entity & { type: 'Location' } => entity.type === 'Location');
+    return entities.filter((entity): entity is Entity & { type: 'Location' } => entity.type === 'Location' && entity.internal === false );
   }, [entities]);
 
   // State for the ID (value) of the selected location entity
@@ -31,13 +31,13 @@ export const LocationEditor: React.FC = () => {
   useEffect(() => {
     if (selectedLocationId) {
       // Find the selected entity
-      const selectedEntity = graphLocations.find(loc => loc.value === selectedLocationId);
+      const selectedEntity = graphLocations.find(loc => loc.name === selectedLocationId);
       if (selectedEntity) {
         // Initialize form data based on the selected entity
         // TODO: In the future, load saved detailed data associated with this ID
         setFormData({
-          id: selectedEntity.value, // ID is the entity value
-          name: selectedEntity.value, // Default name is the entity value
+          id: selectedEntity.name, // ID is the entity value
+          name: selectedEntity.name, // Default name is the entity value
           description: '', // Default empty
           background: '', // Default empty
         });
@@ -81,16 +81,16 @@ export const LocationEditor: React.FC = () => {
           {graphLocations.map((loc) => (
             <li
               // Use loc.value as the key, as it's the unique identifier from the Entity
-              key={loc.value}
+              key={loc.name}
               // Pass loc.value to the selection handler
-              onClick={() => handleSelectLocation(loc.value)}
+              onClick={() => handleSelectLocation(loc.name)}
               className={`p-2 mb-1 rounded cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 ${
                 // Compare selectedLocationId with loc.value
-                selectedLocationId === loc.value ? 'bg-blue-100 dark:bg-blue-800 font-semibold' : ''
+                selectedLocationId === loc.name ? 'bg-blue-100 dark:bg-blue-800 font-semibold' : ''
               }`}
             >
               {/* Display loc.value */}
-              {loc.value}
+              {loc.name}
             </li>
           ))}
         </ul>

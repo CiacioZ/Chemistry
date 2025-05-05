@@ -74,14 +74,15 @@ export type EntityType = 'Character' | 'Item' | 'Location';
 
 export interface Entity {
   type: EntityType;
-  value: string;
+  name: string;
+  internal: boolean;
 }
 
 export const PREDEFINED_ENTITIES: Entity[] = [
-  { type: 'Character', value: 'MAIN_CHARACTER' },
-  { type: 'Item', value: 'NOTHING' },
-  { type: 'Item', value: 'SOMETHING' },
-  { type: 'Location', value: 'EVERYWHERE' }
+  { type: 'Character', name: 'MAIN_CHARACTER', internal: true },
+  { type: 'Item', name: 'NOTHING', internal: true },
+  { type: 'Item', name: 'SOMETHING', internal: true },
+  { type: 'Location', name: 'EVERYWHERE', internal: true }
 ];
 
 export const VERBS = ['Talk to', 'Go to', 'Interact with'] as const;

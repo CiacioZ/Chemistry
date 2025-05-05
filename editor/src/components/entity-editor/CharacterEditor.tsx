@@ -17,7 +17,7 @@ export const CharacterEditor: React.FC = () => {
 
   // Filtra le entità per ottenere solo i Character
   const graphCharacters = useMemo(() => {
-    return entities.filter((entity): entity is Entity & { type: 'Character' } => entity.type === 'Character');
+    return entities.filter((entity): entity is Entity & { type: 'Character' } => entity.type === 'Character' && entity.internal === false );
   }, [entities]);
 
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
@@ -25,12 +25,12 @@ export const CharacterEditor: React.FC = () => {
 
   useEffect(() => {
     if (selectedCharacterId) {
-      const selectedEntity = graphCharacters.find(char => char.value === selectedCharacterId);
+      const selectedEntity = graphCharacters.find(char => char.name === selectedCharacterId);
       if (selectedEntity) {
         // TODO: Caricare dati dettagliati salvati per questo Character ID
         setFormData({
-          id: selectedEntity.value,
-          name: selectedEntity.value, // Default name
+          id: selectedEntity.name,
+          name: selectedEntity.name, // Default name
           description: '', // Default empty
           // Inizializzare altri campi specifici del Character
         });
@@ -67,13 +67,13 @@ export const CharacterEditor: React.FC = () => {
         <ul>
           {graphCharacters.map((char) => (
             <li
-              key={char.value}
-              onClick={() => handleSelectCharacter(char.value)}
+              key={char.name}
+              onClick={() => handleSelectCharacter(char.name)}
               className={`p-2 mb-1 rounded cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 ${
-                selectedCharacterId === char.value ? 'bg-blue-100 dark:bg-blue-800 font-semibold' : ''
+                selectedCharacterId === char.name ? 'bg-blue-100 dark:bg-blue-800 font-semibold' : ''
               }`}
             >
-              {char.value}
+              {char.name}
             </li>
           ))}
         </ul>

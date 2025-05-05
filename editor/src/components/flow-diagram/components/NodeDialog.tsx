@@ -50,7 +50,7 @@ import {
      
      // Se siamo nel campo "to" e ci sono sia Character che Item
      if (fieldName === 'to' && entityTypes.length > 1 && value) {
-       const selectedEntity = entities.find(e => e.value === value);
+       const selectedEntity = entities.find(e => e.name === value);
        if (selectedEntity) {
          onAddEntity(fieldName, selectedEntity.type);
          return;
@@ -81,8 +81,8 @@ import {
                <option disabled>{type}s</option>
              )}
              {typeEntities.map(entity => (
-               <option key={entity.value} value={entity.value}>
-                 {entity.value}
+               <option key={entity.name} value={entity.name}>
+                 {entity.name}
                </option>
              ))}
            </React.Fragment>
@@ -130,7 +130,7 @@ import {
      
      const name = prompt(`Enter new ${type.toLowerCase()} name:`);
      if (name) {
-       setEntities([...entities, { type, value: name }]);
+       setEntities([...entities, { type, name: name, internal: false }]);
        // Selezioniamo automaticamente la nuova entità
        handleInputChange(fieldName, name);
      }

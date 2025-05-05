@@ -17,7 +17,7 @@ export const ItemEditor: React.FC = () => {
 
   // Filtra le entità per ottenere solo gli Item
   const graphItems = useMemo(() => {
-    return entities.filter((entity): entity is Entity & { type: 'Item' } => entity.type === 'Item');
+    return entities.filter((entity): entity is Entity & { type: 'Item' } => entity.type === 'Item'  && entity.internal === false );
   }, [entities]);
 
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
@@ -25,12 +25,12 @@ export const ItemEditor: React.FC = () => {
 
   useEffect(() => {
     if (selectedItemId) {
-      const selectedEntity = graphItems.find(item => item.value === selectedItemId);
+      const selectedEntity = graphItems.find(item => item.name === selectedItemId);
       if (selectedEntity) {
         // TODO: Caricare dati dettagliati salvati per questo Item ID
         setFormData({
-          id: selectedEntity.value,
-          name: selectedEntity.value, // Default name
+          id: selectedEntity.name,
+          name: selectedEntity.name, // Default name
           description: '', // Default empty
           // Inizializzare altri campi specifici dell'Item
         });
@@ -67,13 +67,13 @@ export const ItemEditor: React.FC = () => {
         <ul>
           {graphItems.map((item) => (
             <li
-              key={item.value}
-              onClick={() => handleSelectItem(item.value)}
+              key={item.name}
+              onClick={() => handleSelectItem(item.name)}
               className={`p-2 mb-1 rounded cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 ${
-                selectedItemId === item.value ? 'bg-blue-100 dark:bg-blue-800 font-semibold' : ''
+                selectedItemId === item.name ? 'bg-blue-100 dark:bg-blue-800 font-semibold' : ''
               }`}
             >
-              {item.value}
+              {item.name}
             </li>
           ))}
         </ul>
