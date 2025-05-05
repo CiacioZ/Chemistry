@@ -1,14 +1,9 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Polygon, Point } from '../flow-diagram/types';
 
-// Tipi base
-interface Point {
-  x: number;
-  y: number;
-}
 
-type Polygon = Point[];
 
 // Informazioni sul vertice selezionato/trascinato
 interface VertexInfo {

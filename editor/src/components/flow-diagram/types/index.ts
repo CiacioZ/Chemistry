@@ -78,6 +78,48 @@ export interface Entity {
   internal: boolean;
 }
 
+export interface CharacterDetails {
+  inventory?: string[]; // Array di ID di Item
+  dialogueTree?: string; // ID o riferimento all'albero di dialogo
+  // Aggiungi qui altre proprietà specifiche per Character
+}
+
+export interface ItemDetails {
+  description?: string;
+  canBePickedUp?: boolean;
+  // Aggiungi qui altre proprietà specifiche per Item
+}
+
+export interface Point {
+  x: number;
+  y: number;
+}
+
+export type Polygon = Point[];
+
+export interface LocationDetails {
+  backgroundImage: string | null;
+  polygons: Polygon[];
+  // Aggiungi qui altre proprietà specifiche per Location (es. description, walkableAreas, etc.)
+  description?: string;
+}
+
+export interface LocationEntity extends Entity {
+  type: 'Location';
+  details: LocationDetails;
+}
+
+export interface CharacterEntity extends Entity {
+  type: 'Character';
+  details: CharacterDetails;
+}
+
+export interface ItemEntity extends Entity {
+  type: 'Item';
+  details: ItemDetails;
+}
+
+
 export const PREDEFINED_ENTITIES: Entity[] = [
   { type: 'Character', name: 'MAIN_CHARACTER', internal: true },
   { type: 'Item', name: 'NOTHING', internal: true },
