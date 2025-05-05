@@ -29,7 +29,13 @@ export default function EditorPage() {
 
   // Funzione per salvare
   const handleSave = () => {
+    // Salva lo stato corrente: nodi del grafo, nome progetto,
+    // e l'array delle entità (che ora include i dettagli aggiornati
+    // dagli editor attivi, come i poligoni delle location).
+    // Assicurati che la funzione 'saveDiagram' sia in grado di gestire
+    // correttamente la serializzazione dei dettagli delle entità.
     saveDiagram(nodes, projectName, entities);
+    alert('Progetto salvato!'); // Feedback opzionale per l'utente
   };
 
   // Funzione per caricare
@@ -40,6 +46,8 @@ export default function EditorPage() {
     loadDiagram(
       file,
       (loadedNodes, loadedProjectName, loadedEntities) => {
+        // Assicurati che 'loadDiagram' carichi correttamente anche
+        // i dettagli delle entità nell'array 'loadedEntities'.
         pushNodes(loadedNodes); // Usa pushNodes per compatibilità undo/redo
         setProjectName(loadedProjectName);
         setEntities(loadedEntities);

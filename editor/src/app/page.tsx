@@ -24,7 +24,7 @@ export default function HomePage() {
         setProjectName(loadedProjectName);
         setEntities(loadedEntities);
         // Reindirizza all'editor dopo il caricamento
-        router.push('/entities');
+        router.push('/editor'); // Modificato da '/entities'
       },
       (error) => {
         // Mostra un messaggio di errore se il caricamento fallisce
@@ -40,7 +40,7 @@ export default function HomePage() {
     <div className="flex flex-col items-center justify-center min-h-screen p-4 space-y-4">
       <h1 className="text-xl mb-4">Gestione Progetti</h1>
       {/* Bottone "Crea nuovo progetto" rimane un Link */}
-      <Link href="/entities">
+      <Link href="/editor"> {/* Modificato da '/entities' */}
         <button className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded w-48">
           Crea nuovo progetto
         </button>
