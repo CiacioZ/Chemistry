@@ -53,6 +53,9 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
   const currentPolygonRef = useRef(currentPolygon);
   const draggingVertexInfoRef = useRef(draggingVertexInfo);
 
+  // Ref per tracciare se il primo rendering/aggiornamento da props è completo per la location corrente
+  const firstRenderDoneRef = useRef(false);
+
   // Aggiorna i ref quando lo stato cambia
   useEffect(() => { polygonsRef.current = polygons; }, [polygons]);
   useEffect(() => { currentPolygonRef.current = currentPolygon; }, [currentPolygon]);
@@ -63,6 +66,7 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
     setPolygons(initialPolygonsFromEntity || []);
     setCurrentPolygon([]);
     setIsDrawing(false);
+    firstRenderDoneRef.current = false; // Resetta per la nuova location, per saltare il primo auto-save
     // imageSize will be re-evaluated when imageUrl changes and the image loads
   }, [locationId, initialImageUrlFromEntity, initialPolygonsFromEntity]);
 
@@ -86,6 +90,23 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
     // You can add a confirmation log or a user notification if desired
     // console.log(`Location ${locationId} data updated in context.`);
   }, [locationId, imageUrl, polygons, entities, setEntities]);
+
+  // Nuovo useEffect per il salvataggio automatico
+  useEffect(() => {
+    // Non salvare se non c'è un locationId o se un upload è in corso (verrà salvato al termine)
+    if (!locationId || isUploading) {
+      return;
+    }
+
+    // Salta il salvataggio automatico al primissimo rendering dopo che le props sono state applicate
+    if (!firstRenderDoneRef.current) {
+      firstRenderDoneRef.current = true; // Marca il primo rendering come completato
+      return;
+    }
+
+    // Chiamato quando imageUrl o polygons cambiano (dopo il primo rendering)
+    persistChangesToContext();
+  }, [imageUrl, polygons, locationId, isUploading, persistChangesToContext]); // persistChangesToContext è incluso per correttezza se la sua istanza cambia
 
   // Funzione per calcolare le coordinate relative all'immagine (naturali)
   const getNaturalCoordinates = useCallback((e: MouseEvent | React.MouseEvent): Point | null => {
@@ -476,53 +497,6 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
     }
   };
 
-  // Bottone Salva
-  const handleSaveClick = () => {
-    // Se stai disegnando, non permettere di salvare finché il poligono corrente non è finalizzato o annullato.
-    // Questo per evitare ambiguità su cosa significa "salva" mentre si disegna.
-    // In alternativa, potresti voler finalizzare il poligono corrente automaticamente al click di "Save"
-    // se ha almeno 3 punti, come faceva la versione precedente. Manteniamo la logica precedente per
-    // compatibilità, ma l'UX è migliore se l'utente finalizza esplicitamente O annulla.
-    // Decidiamo di mantenere la logica precedente: "Save" finalizza il poligono corrente *se* valido.
-
-    let polygonsToSave = polygons;
-    let finishedCurrent = false;
-
-    if (isDrawing && currentPolygon.length >= 3) {
-       // Finalizza poligono corrente e aggiungilo alla lista per il salvataggio
-       polygonsToSave = [...polygons, currentPolygon];
-       finishedCurrent = true;
-    } else if (isDrawing && currentPolygon.length > 0) {
-        // Se sta disegnando ma il poligono non è valido (meno di 3 punti),
-        // non lo includiamo nel salvataggio e avvisiamo. NON annulliamo automaticamente il disegno qui
-        // per non perdere il lavoro, l'utente deve usare "Cancel Current".
-         alert('Poligono corrente incompleto (meno di 3 punti). Non incluso nel salvataggio.');
-         // polygonsToSave rimane 'polygons' (non include l'incompleto currentPolygon)
-         // Non aggiorniamo lo stato locale del disegno qui.
-    }
-
-    // Se un poligono corrente è stato finalizzato *durante* questo click su "Save",
-    // aggiorna lo stato locale.
-    if (finishedCurrent) {
-         setPolygons(polygonsToSave); // polygonsToSave include il poligono appena finalizzato
-         setCurrentPolygon([]);
-         setIsDrawing(false);
-         setHoveredVertexInfo(null); // Resetta stato hover
-    }
-
-    // Chiama onSave con la lista finale di poligoni e l'URL corrente
-    // Se finishedCurrent era false (o non stavi disegnando), polygonsToSave è semplicemente lo stato 'polygons' prima di questo handler.
-    persistChangesToContext();
-
-    // Modificato messaggio in base a se un poligono è stato finalizzato o meno
-    if (finishedCurrent) {
-         alert('Poligono corrente finalizzato e dati mappa pronti per essere salvati!');
-    } else {
-         alert('Dati mappa (poligoni salvati) pronti per essere salvati!');
-    }
-  };
-
-
   // Bottone Annulla disegno corrente
   const handleCancelDrawing = () => {
       if (confirm('Sei sicuro di voler annullare il disegno corrente?')) {
@@ -612,16 +586,6 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
              >
                 Clear All
              </button>
-
-             {/* Bottone Salva Dati Mappa */}
-             <button
-              onClick={handleSaveClick}
-              // Disabilita se stai disegnando un poligono incompleto (< 3 punti)
-              disabled={isDrawing && currentPolygon.length > 0 && currentPolygon.length < 3}
-              className="px-3 py-1 text-sm bg-green-500 hover:bg-green-600 text-white rounded disabled:bg-gray-400 disabled:cursor-not-allowed"
-            >
-              Confirm changes
-            </button>
 
           </>
         )}
