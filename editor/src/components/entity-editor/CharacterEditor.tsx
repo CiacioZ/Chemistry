@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef } from 'react'; // Aggiunto useRef
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'; // Aggiunto useRef
 import { useDiagramContext } from '../flow-diagram/contexts/DiagramContext';
 import { Entity, CharacterEntity } from '../flow-diagram/types'; // Manteniamo Entity, useremo un cast o un tipo più specifico se necessario
 
@@ -119,6 +119,19 @@ export const CharacterEditor: React.FC = () => {
   };
 
   // TODO: Implementare funzioni Create New, Delete (i bottoni verranno rimossi o modificati)
+  const handleDeleteItem = useCallback((caracterIdToDelete: string) => {
+    if (window.confirm(`Sei sicuro di voler cancellare l'item "${caracterIdToDelete}"? Questa azione non può essere annullata.`)) {
+      // Calculate the new entities array by filtering out the item to delete
+      const newEntities = entities.filter((entity: Entity) => entity.name !== caracterIdToDelete);
+      setEntities(newEntities); // Pass the new array directly
+
+      if (selectedCharacterId === caracterIdToDelete) {
+        setSelectedCharacterId(null);
+        setFormData({});
+      }
+      // Potresti voler mostrare una notifica di successo qui
+    }
+  }, [selectedCharacterId, setEntities, entities]); 
 
   return (
     <div className="flex h-full space-x-4">
@@ -127,15 +140,31 @@ export const CharacterEditor: React.FC = () => {
         <h3 className="text-lg font-semibold mb-3">Characters</h3>
         {/* TODO: Bottone "New Character" */}
         <ul>
+        
           {graphCharacters.map((char) => (
             <li
               key={char.name}
-              onClick={() => handleSelectCharacter(char.name)}
-              className={`p-2 mb-1 rounded cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 ${
+              className={`flex justify-between items-center p-2 mb-1 rounded cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 ${
                 selectedCharacterId === char.name ? 'bg-blue-100 dark:bg-blue-800 font-semibold' : ''
               }`}
             >
-              {char.name}
+              <span onClick={() => handleSelectCharacter(char.name)} className="flex-grow"> {/* Clicca sul nome per selezionare */}
+                {char.name}
+              </span>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation(); // Impedisce al click di propagarsi al li e selezionare l'item
+                  handleDeleteItem(char.name);
+                }}
+                className="ml-2 p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 rounded-full hover:bg-red-100 dark:hover:bg-red-700/50 focus:outline-none"
+                aria-label={`Delete ${char.name}`}
+                title={`Delete ${char.name}`}
+              >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              </button>
             </li>
           ))}
         </ul>
@@ -192,13 +221,7 @@ export const CharacterEditor: React.FC = () => {
             <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
               Altri campi specifici per i Character verranno aggiunti qui...
             </p>
-            {/* Bottoni Azioni - Verranno rimossi o modificati se l'auto-save copre tutto */}
-            
-            <div className="flex justify-end space-x-2 mt-6">              
-              <button type="button" className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600">
-                Delete Character
-              </button>
-            </div>            
+                        
           </form>
         ) : (
           <div className="text-center text-gray-500 dark:text-gray-400 mt-10">
