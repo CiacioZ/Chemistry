@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react'; // Added useMemo
 import { useDiagramContext } from '../flow-diagram/contexts/DiagramContext';
-import { Entity } from '../flow-diagram/types'; // Removed EntityType as it's not directly used here
+import { Entity, LocationEntity } from '../flow-diagram/types'; // Import LocationEntity
 import { PolygonEditor } from './PolygonEditor';
 
 // Interface for the detailed location data used in the form
@@ -15,11 +15,13 @@ interface LocationData {
 }
 
 export const LocationEditor: React.FC = () => {
-  const { entities } = useDiagramContext();
+  const { entities, setEntities } = useDiagramContext(); // Get setEntities
 
   // Derive the list of location entities directly from the context
   const graphLocations = useMemo(() => {
-    return entities.filter((entity): entity is Entity & { type: 'Location' } => entity.type === 'Location' && entity.internal === false );
+    return entities.filter((entity): entity is LocationEntity => // Use LocationEntity type guard
+        entity.type === 'Location' && entity.internal === false
+    );
   }, [entities]);
 
   // State for the ID (value) of the selected location entity
@@ -32,14 +34,14 @@ export const LocationEditor: React.FC = () => {
     if (selectedLocationId) {
       // Find the selected entity
       const selectedEntity = graphLocations.find(loc => loc.name === selectedLocationId);
-      if (selectedEntity) {
+      if (selectedEntity) { // selectedEntity is now LocationEntity
+        const details = selectedEntity.details || {}; // Ensure details is an object
         // Initialize form data based on the selected entity
-        // TODO: In the future, load saved detailed data associated with this ID
         setFormData({
           id: selectedEntity.name, // ID is the entity value
           name: selectedEntity.name, // Default name is the entity value
-          description: '', // Default empty
-          background: '', // Default empty
+          description: details.description || '', // Access safely
+          background: details.backgroundImage || '', // Access safely
         });
       } else {
         // If the selected ID doesn't match any current entity, reset
@@ -100,7 +102,38 @@ export const LocationEditor: React.FC = () => {
       <div className="w-2/3 border rounded-md shadow-sm p-4 bg-white dark:bg-gray-800 overflow-y-auto">
         <h2 className="text-xl font-semibold mb-4">Location Details</h2>
         {selectedLocationId ? (
-          <PolygonEditor />
+          (() => {
+            const selectedLocationEntity = entities.find(
+                (e): e is LocationEntity => e.type === 'Location' && e.name === selectedLocationId
+            );
+            
+            if (!selectedLocationEntity) {
+                return (
+                    <div className="text-center text-gray-500 dark:text-gray-400 mt-10">
+                        Selected location not found.
+                    </div>
+                );
+            }
+            const details = selectedLocationEntity.details || {}; // Ensure details is an object
+            // Fornire un imageUploadService fittizio o reale se disponibile
+            const dummyImageUploadService = async (file: File): Promise<string> => {
+              console.log("Dummy imageUploadService called with:", file.name);
+              // Simula un upload e restituisce un URL temporaneo o un placeholder
+              return new Promise(resolve => setTimeout(() => resolve(URL.createObjectURL(file)), 1000));
+            };
+
+            return (
+              <PolygonEditor
+                key={selectedLocationId} // Ensures re-initialization when location changes
+                locationId={selectedLocationId}
+                initialImageUrlFromEntity={details.backgroundImage || null} // Access safely
+                initialPolygonsFromEntity={details.walkableAreas || []} // Access safely
+                entities={entities}
+                setEntities={setEntities}
+                imageUploadService={dummyImageUploadService} // Passare un imageUploadService effettivo se disponibile
+              />
+            );
+          })()
         ) : (
           <div className="text-center text-gray-500 dark:text-gray-400 mt-10">
             Select a location from the list to view or edit its details.
@@ -110,4 +143,3 @@ export const LocationEditor: React.FC = () => {
     </div> // Closing tag for the main flex container
   );
 };
-// Removed the duplicate code block that was causing the final error

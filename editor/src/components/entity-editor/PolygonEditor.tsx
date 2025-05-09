@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Polygon, Point } from '../flow-diagram/types';
+import { Polygon, Point, Entity, LocationEntity } from '../flow-diagram/types';
 
 
 
@@ -13,23 +13,27 @@ interface VertexInfo {
 
 
 interface PolygonEditorProps {
-  initialImageUrl?: string | null; // URL immagine iniziale (opzionale)
-  initialPolygons?: Polygon[]; // Poligoni iniziali (opzionale)
-  onSave?: (polygons: Polygon[], imageUrl: string | null) => void; // Callback per salvare
-  imageUploadService?: (file: File) => Promise<string>; // Funzione per caricare l'immagine (opzionale)
+  locationId: string; // ID of the location entity being edited
+  initialImageUrlFromEntity?: string | null;
+  initialPolygonsFromEntity?: Polygon[];
+  entities: Entity[]; // Full list of entities from context
+  setEntities: (entities: Entity[]) => void; // Updater function from context
+  imageUploadService?: (file: File) => Promise<string>;
 }
 
 // Costante per la tolleranza del click sui vertici
 const VERTEX_CLICK_TOLERANCE = 8; // Pixel sul canvas
 
 export const PolygonEditor: React.FC<PolygonEditorProps> = ({
-  initialImageUrl = null,
-  initialPolygons = [],
-  onSave,
-  imageUploadService, // Funzione per gestire l'upload effettivo
+  locationId,
+  initialImageUrlFromEntity,
+  initialPolygonsFromEntity,
+  entities,
+  setEntities,
+  imageUploadService,
 }) => {
-  const [imageUrl, setImageUrl] = useState<string | null>(initialImageUrl);
-  const [polygons, setPolygons] = useState<Polygon[]>(initialPolygons);
+  const [imageUrl, setImageUrl] = useState<string | null>(initialImageUrlFromEntity || null);
+  const [polygons, setPolygons] = useState<Polygon[]>(initialPolygonsFromEntity || []);
   const [currentPolygon, setCurrentPolygon] = useState<Point[]>([]);
   const [isDrawing, setIsDrawing] = useState<boolean>(false);
   const [imageSize, setImageSize] = useState<{ width: number; height: number } | null>(null);
@@ -54,6 +58,34 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
   useEffect(() => { currentPolygonRef.current = currentPolygon; }, [currentPolygon]);
   useEffect(() => { draggingVertexInfoRef.current = draggingVertexInfo; }, [draggingVertexInfo]);
 
+  useEffect(() => {
+    setImageUrl(initialImageUrlFromEntity || null);
+    setPolygons(initialPolygonsFromEntity || []);
+    setCurrentPolygon([]);
+    setIsDrawing(false);
+    // imageSize will be re-evaluated when imageUrl changes and the image loads
+  }, [locationId, initialImageUrlFromEntity, initialPolygonsFromEntity]);
+
+  const persistChangesToContext = useCallback(() => {
+    const updatedEntities = entities.map(entity => {
+      if (entity.type === 'Location' && entity.name === locationId) {
+        // Cast to LocationEntity to safely access details
+        const locEntity = entity as LocationEntity;
+        return {
+          ...locEntity,
+          details: {
+            ...(locEntity.details || {}), // Ensure details is an object before spreading
+            backgroundImage: imageUrl,
+            walkableAreas: polygons,
+          },
+        };
+      }
+      return entity;
+    });
+    setEntities(updatedEntities);
+    // You can add a confirmation log or a user notification if desired
+    // console.log(`Location ${locationId} data updated in context.`);
+  }, [locationId, imageUrl, polygons, entities, setEntities]);
 
   // Funzione per calcolare le coordinate relative all'immagine (naturali)
   const getNaturalCoordinates = useCallback((e: MouseEvent | React.MouseEvent): Point | null => {
@@ -222,15 +254,14 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
         drawVertex(p, 'rgba(0, 255, 0, 0.8)', 4, isHovered, isDragging);
       });
     }
-  }, [polygons, currentPolygon, imageSize, draggingVertexInfo, hoveredVertexInfo]); // Aggiunte dipendenze dragging/hovered
+  }, [polygons, currentPolygon, imageSize, hoveredVertexInfo, draggingVertexInfo, imageUrl]); // Added imageUrl dependency
 
-  // Aggiorna il disegno quando cambiano i dati o la dimensione dell'immagine
+  // Effetto per ridisegnare quando i poligoni, l'immagine o la dimensione cambiano
   useEffect(() => {
     draw();
-  }, [draw]); // draw è memoizzata con useCallback
+  }, [draw]); // draw is memoized with its dependencies
 
-
-  // Gestione caricamento immagine
+  // Effetto per caricare l'immagine e impostare le dimensioni
   const handleImageLoad = useCallback(() => {
     if (imageRef.current) {
       setImageSize({ width: imageRef.current.naturalWidth, height: imageRef.current.naturalHeight });
@@ -481,7 +512,7 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
 
     // Chiama onSave con la lista finale di poligoni e l'URL corrente
     // Se finishedCurrent era false (o non stavi disegnando), polygonsToSave è semplicemente lo stato 'polygons' prima di questo handler.
-    onSave?.(polygonsToSave, imageUrl);
+    persistChangesToContext();
 
     // Modificato messaggio in base a se un poligono è stato finalizzato o meno
     if (finishedCurrent) {
@@ -589,7 +620,7 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
               disabled={isDrawing && currentPolygon.length > 0 && currentPolygon.length < 3}
               className="px-3 py-1 text-sm bg-green-500 hover:bg-green-600 text-white rounded disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
-              Save Polygons Data
+              Confirm changes
             </button>
 
           </>
@@ -683,3 +714,17 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
     </div>
   );
 };
+
+/*
+const someSaveFunction = () => {
+  // onSave(locationId, imageUrl, polygons); // This line causes TS2304 if onSave is not defined. Remove it.
+  // If you need to save from PolygonEditor, update entities via setEntities prop:
+  // For example:
+  // setEntities(prevEntities => prevEntities.map(ent => {
+  //   if (ent.name === locationId && ent.type === 'Location') {
+  //     return { ...ent, details: { ...(ent.details as LocationDetails), backgroundImage: imageUrl, walkableAreas: polygons } };
+  //   }
+  //   return ent;
+  // }));
+};
+*/

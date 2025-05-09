@@ -76,6 +76,7 @@ export interface Entity {
   type: EntityType;
   name: string;
   internal: boolean;
+  details?: AllEntityDetails; // Modifica: Aggiunto campo details opzionale
 }
 
 export interface CharacterDetails {
@@ -90,6 +91,9 @@ export interface ItemDetails {
   // Aggiungi qui altre proprietà specifiche per Item
 }
 
+// Aggiunta: Tipo unione per tutti i dettagli delle entità
+export type AllEntityDetails = CharacterDetails | ItemDetails | LocationDetails;
+
 export interface Point {
   x: number;
   y: number;
@@ -99,7 +103,7 @@ export type Polygon = Point[];
 
 export interface LocationDetails {
   backgroundImage: string | null;
-  polygons: Polygon[];
+  walkableAreas: Polygon[];
   // Aggiungi qui altre proprietà specifiche per Location (es. description, walkableAreas, etc.)
   description?: string;
 }
@@ -119,12 +123,48 @@ export interface ItemEntity extends Entity {
   details: ItemDetails;
 }
 
+// Tipo Entity come unione discriminata basata sulle interfacce specifiche
+export type AnyEntity = LocationEntity | CharacterEntity | ItemEntity;
 
-export const PREDEFINED_ENTITIES: Entity[] = [
-  { type: 'Character', name: 'MAIN_CHARACTER', internal: true },
-  { type: 'Item', name: 'NOTHING', internal: true },
-  { type: 'Item', name: 'SOMETHING', internal: true },
-  { type: 'Location', name: 'EVERYWHERE', internal: true }
+
+export const PREDEFINED_ENTITIES: AnyEntity[] = [ // Usiamo AnyEntity[] per maggiore specificità
+  {
+    type: 'Character',
+    name: 'MAIN_CHARACTER',
+    internal: true,
+    details: {
+      inventory: [],
+      dialogueTree: undefined, // o un valore di default appropriato
+    }
+  },
+  {
+    type: 'Item',
+    name: 'NOTHING',
+    internal: true,
+    details: {
+      description: 'Nothing special.',
+      canBePickedUp: false,
+    }
+  },
+  {
+    type: 'Item',
+    name: 'SOMETHING',
+    internal: true,
+    details: {
+      description: 'An interesting item.',
+      canBePickedUp: true,
+    }
+  },
+  {
+    type: 'Location',
+    name: 'EVERYWHERE',
+    internal: true,
+    details: {
+      backgroundImage: null,
+      walkableAreas: [],
+      description: 'An ubiquitous place.'
+    }
+  }
 ];
 
 export const VERBS = ['Talk to', 'Go to', 'Interact with'] as const;
