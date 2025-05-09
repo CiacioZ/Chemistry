@@ -777,17 +777,3 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
     </div>
   );
 };
-
-/*
-const someSaveFunction = () => {
-  // onSave(locationId, imageUrl, polygons); // This line causes TS2304 if onSave is not defined. Remove it.
-  // If you need to save from PolygonEditor, update entities via setEntities prop:
-  // For example:
-  // setEntities(prevEntities => prevEntities.map(ent => {
-  //   if (ent.name === locationId && ent.type === 'Location') {
-  //     return { ...ent, details: { ...(ent.details as LocationDetails), backgroundImage: imageUrl, walkableAreas: polygons } };
-  //   }
-  //   return ent;
-  // }));
-};
-*/

@@ -9,8 +9,9 @@ interface ItemData {
   id: string; // Corresponds to Entity.value
   name: string;
   description: string;
-  imageData?: string; // Aggiunto campo per l'URL dell'immagine
-  // Aggiungere altri campi specifici per gli Item (es. immagine, peso, proprietà...)
+  imageData?: string;
+  canBePickedUp?: boolean; // Aggiunto campo per il flag
+  inventoryImageData?: string; // Aggiunto campo per l'immagine dell'inventario
 }
 
 interface ItemEditorProps { // Aggiunta interfaccia Props
@@ -27,73 +28,131 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ imageUploadService }) =>
 
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<ItemData>>({});
-  const [isUploading, setIsUploading] = useState<boolean>(false); // Stato per il caricamento
+  const [isUploading, setIsUploading] = useState<boolean>(false); // Stato per il caricamento imageData
+  const [isUploadingInventory, setIsUploadingInventory] = useState<boolean>(false); // Stato per il caricamento inventoryImageData
 
-  const fileInputRef = useRef<HTMLInputElement>(null); // Ref per l'input file
-  const imageRef = useRef<HTMLImageElement>(null); // Ref per l'immagine (opzionale, per forzare il reload)
+  const fileInputRef = useRef<HTMLInputElement>(null); // Ref per l'input file imageData
+  const imageRef = useRef<HTMLImageElement>(null); // Ref per l'immagine imageData (opzionale, per forzare il reload)
+  const inventoryFileInputRef = useRef<HTMLInputElement>(null); // Ref per l'input file inventoryImageData
+  const inventoryImageRef = useRef<HTMLImageElement>(null); // Ref per l'immagine inventoryImageData
+
+  // Ref per tracciare se il formData corrente è il caricamento iniziale per l'item selezionato
+  const isInitialDataLoad = useRef(false);
 
   useEffect(() => {
     if (selectedItemId) {
       const selectedEntity = graphItems.find(item => item.name === selectedItemId);
       if (selectedEntity) {
-        // Carica i dati dettagliati dell'entità Item selezionata
+        isInitialDataLoad.current = true; // Segna che stiamo caricando i dati iniziali
         setFormData({
           id: selectedEntity.name,
           name: selectedEntity.name,
           description: selectedEntity.details?.description || '',
-          imageData: selectedEntity.details?.imageData || '', // Carica imageUrl
+          imageData: selectedEntity.details?.imageData || '',
+          canBePickedUp: selectedEntity.details?.canBePickedUp || false,
+          inventoryImageData: selectedEntity.details?.inventoryImageData || '',
         });
       } else {
-        setSelectedItemId(null);
+        setSelectedItemId(null); // Item non trovato, deseleziona
         setFormData({});
       }
     } else {
-      setFormData({});
+      setFormData({}); // Nessun item selezionato
     }
   }, [selectedItemId, graphItems]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prevData => ({
-      ...prevData,
-      [name]: value,
-    }));
-  };
 
-  const handleSelectItem = (id: string) => {
-    setSelectedItemId(id);
-  };
-
-  const handleSaveChanges = () => {
-    if (!selectedItemId || !formData.name) {
-      alert("Item name cannot be empty.");
+  // useEffect per l'auto-salvataggio
+  useEffect(() => {
+    // 1. Non salvare se è il caricamento iniziale dei dati per l'item selezionato.
+    if (isInitialDataLoad.current) {
+      isInitialDataLoad.current = false; // Resetta il flag per le modifiche successive
       return;
     }
 
-    // Calculate the new state based on the current 'entities' from the context
-    const newEntities = entities.map((entity: Entity) => {
-      if (entity.type === 'Item' && entity.name === selectedItemId) {
-        const updatedItemEntity = entity as ItemEntity; // Cast per accedere a details
+    // 2. Salva solo se un item è selezionato e formData è popolato.
+    // formData.id dovrebbe contenere la chiave dell'item in modifica.
+    if (!selectedItemId || !formData.id) {
+      return;
+    }
+
+    const itemToUpdateKey = selectedItemId; // La chiave dell'item nell'array `entities`
+
+    // Gestione del rename: se formData.name è diverso da itemToUpdateKey
+    const newName = formData.name;
+    if (newName && newName !== itemToUpdateKey) {
+      // This 'entities.some' uses the 'entities' from the closure when the effect was scheduled.
+      // Since 'entities' will be in the dependency array, this will use the current 'entities'.
+      const isNameTaken = entities.some(e => e.name === newName && e.name !== itemToUpdateKey);
+      if (isNameTaken) {
+        alert(`Il nome dell'item "${newName}" è già in uso. Modifica del nome annullata.`);
+        setFormData(prev => ({ ...prev, name: itemToUpdateKey }));
+        return; 
+      }
+    }
+
+    // Calculate the new entities array based on the current `entities`
+    const newEntitiesValue: Entity[] = entities.map((entity: Entity) => {
+      if (entity.type === 'Item' && entity.name === itemToUpdateKey) { 
+        const currentEntity = entity as ItemEntity;
         return {
-          ...updatedItemEntity,
-          name: formData.name!, // Il nome dell'entità deve essere aggiornato se formData.name cambia
+          ...currentEntity,
+          name: formData.name || currentEntity.name, 
           details: {
-            ...(updatedItemEntity.details || {}),
+            ...(currentEntity.details || {}),
             description: formData.description || '',
             imageData: formData.imageData || '',
-            // canBePickedUp non è nel form, quindi lo manteniamo com'è o lo gestiamo separatamente
+            canBePickedUp: formData.canBePickedUp || false,
+            inventoryImageData: formData.inventoryImageData || '',
           },
         };
       }
       return entity;
     });
 
-    setEntities(newEntities); // Pass the computed array directly
-    alert('Item details saved!');
+    // To prevent infinite loops, only call setEntities if the data has actually changed.
+    // JSON.stringify is a simple way for deep comparison but has performance caveats for large/complex data.
+    // Consider a proper deep-equal utility or immutable update patterns for production.
+    if (JSON.stringify(entities) !== JSON.stringify(newEntitiesValue)) {
+      setEntities(newEntitiesValue);
+    }
+
+    // Se il rename ha avuto successo (non bloccato da isNameTaken), aggiorna selectedItemId al nuovo nome
+    if (newName && newName !== itemToUpdateKey) {
+       // Ensure the name isn't taken in the *new* array if setEntities was conditional or async
+       // This check might be redundant if the earlier `isNameTaken` is sufficient and updates are synchronous
+       const nameStillAvailableInNewArray = !newEntitiesValue.some(e => e.name === newName && e.name !== newName /* check if newName is now the key */);
+       if (nameStillAvailableInNewArray) { // Simplified: assuming the previous check is robust enough for this flow
+           setSelectedItemId(newName); 
+       }
+    }
+  }, [formData, selectedItemId, setEntities, entities]); // `entities` is now a dependency
+
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target;
+    const checked = (e.target as HTMLInputElement).checked;
+
+    setFormData(prevData => ({
+      ...prevData,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
+    // L'useEffect che osserva formData gestirà il salvataggio.
   };
+
+  const handleSelectItem = (id: string) => {
+    setSelectedItemId(id);
+  };
+
+  // Rimuoviamo handleSaveChanges
+  // const handleSaveChanges = () => { ... };
 
   const handleImageUploadClick = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleInventoryImageUploadClick = () => {
+    inventoryFileInputRef.current?.click();
   };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -111,7 +170,7 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ imageUploadService }) =>
       const uploadedUrl = await imageUploadService(file);
       setFormData(prevData => ({
         ...prevData,
-        imageUrl: uploadedUrl,
+        imageData: uploadedUrl, // Aggiorna imageData
       }));
       // Se si usa imageRef per forzare l'aggiornamento dell'immagine visualizzata
       if (imageRef.current) {
@@ -129,9 +188,40 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ imageUploadService }) =>
     }
   };
 
+  const handleInventoryFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !imageUploadService) {
+      if (!imageUploadService) {
+        console.warn("imageUploadService is not provided to ItemEditor.");
+        alert("Servizio di caricamento immagine non configurato.");
+      }
+      return;
+    }
 
-  // TODO: Implementare funzioni Create New, Delete
+    setIsUploadingInventory(true);
+    try {
+      const uploadedUrl = await imageUploadService(file);
+      setFormData(prevData => ({
+        ...prevData,
+        inventoryImageData: uploadedUrl, // Aggiorna inventoryImageData
+      }));
+      if (inventoryImageRef.current) {
+        inventoryImageRef.current.src = uploadedUrl;
+      }
+    } catch (error) {
+      console.error("Error uploading inventory image:", error);
+      alert("Errore durante il caricamento dell'immagine per l'inventario.");
+    } finally {
+      setIsUploadingInventory(false);
+      if (inventoryFileInputRef.current) {
+        inventoryFileInputRef.current.value = '';
+      }
+    }
+    // L'useEffect che osserva formData gestirà il salvataggio.
+  };
 
+
+  // TODO: Implementare funzioni Create New, Delete (Delete Item rimane)
   return (
     <div className="flex h-full space-x-4">
       {/* Colonna Sinistra: Lista degli Items */}
@@ -158,18 +248,18 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ imageUploadService }) =>
         <h2 className="text-xl font-semibold">Item Details</h2>
         {selectedItemId ? (
           <>
-            {/* Sezione Upload e Anteprima Immagine (più prominente) */}
+            {/* Sezione Upload e Anteprima Immagine (Item Image) */}
             <div className="border rounded-md p-3 bg-gray-50 dark:bg-gray-700/50 shadow-sm">
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-sm font-medium text-gray-900 dark:text-gray-100">
-                  Item Image
+                  Item Image (In-Game)
                 </label>
                 <button
                   type="button"
                   onClick={handleImageUploadClick}
-                  disabled={isUploading || !imageUploadService}
+                  disabled={isUploading || !imageUploadService || isUploadingInventory}
                   className={`px-3 py-1.5 border border-transparent rounded-md shadow-sm text-xs font-medium text-white 
-                              ${isUploading || !imageUploadService ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}
+                              ${isUploading || !imageUploadService || isUploadingInventory ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}
                               focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
                 >
                   {isUploading ? 'Uploading...' : (formData.imageData ? 'Change Image' : 'Upload Image')}
@@ -177,7 +267,7 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ imageUploadService }) =>
               </div>
               <div 
                 className="mt-1 w-full flex justify-center items-center bg-gray-200 dark:bg-gray-600 rounded" 
-                style={{ minHeight: '150px', maxHeight: '250px', overflow: 'hidden' }} // Area anteprima più grande e definita
+                style={{ minHeight: '150px', maxHeight: '250px', overflow: 'hidden' }}
               >
                 {formData.imageData ? (
                   <img
@@ -267,7 +357,86 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ imageUploadService }) =>
                 />
               </div>
 
-              {/* Rimosso il vecchio blocco immagine da qui */}
+              {/* Can Be Picked Up Checkbox */}
+              <div className="mb-4">
+                <label htmlFor="canBePickedUp" className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <input
+                    type="checkbox"
+                    id="canBePickedUp"
+                    name="canBePickedUp"
+                    checked={formData.canBePickedUp || false}
+                    onChange={handleChange}
+                    className="mr-2 h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                  />
+                  Can be picked up
+                </label>
+              </div>
+
+              {/* Sezione Upload e Anteprima Immagine per Inventario (condizionale) */}
+              {formData.canBePickedUp && (
+                <div className="border rounded-md p-3 bg-gray-50 dark:bg-gray-700/50 shadow-sm mt-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-900 dark:text-gray-100">
+                      Inventory Image
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleInventoryImageUploadClick}
+                      disabled={isUploadingInventory || !imageUploadService || isUploading}
+                      className={`px-3 py-1.5 border border-transparent rounded-md shadow-sm text-xs font-medium text-white 
+                                  ${isUploadingInventory || !imageUploadService || isUploading ? 'bg-gray-400 cursor-not-allowed' : 'bg-teal-600 hover:bg-teal-700'}
+                                  focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500`}
+                    >
+                      {isUploadingInventory ? 'Uploading...' : (formData.inventoryImageData ? 'Change Inventory Image' : 'Upload Inventory Image')}
+                    </button>
+                  </div>
+                  <div 
+                    className="mt-1 w-full flex justify-center items-center bg-gray-200 dark:bg-gray-600 rounded" 
+                    style={{ minHeight: '100px', maxHeight: '150px', overflow: 'hidden' }} // Area anteprima più piccola per inventario
+                  >
+                    {formData.inventoryImageData ? (
+                      <img
+                        ref={inventoryImageRef}
+                        src={formData.inventoryImageData}
+                        alt="Inventory image preview"
+                        className="max-w-full max-h-full object-contain"
+                        onError={(e) => {
+                            const target = e.currentTarget as HTMLImageElement;
+                            target.style.display = 'none';
+                            const parent = target.parentElement;
+                            if (parent && !parent.querySelector('.img-error-msg-inv')) {
+                                const errorMsg = document.createElement('p');
+                                errorMsg.textContent = 'Failed to load inventory image.';
+                                errorMsg.className = 'text-xs text-red-500 img-error-msg-inv text-center p-4';
+                                parent.appendChild(errorMsg);
+                            }
+                        }}
+                        onLoad={(e) => {
+                            const target = e.currentTarget as HTMLImageElement;
+                            target.style.display = 'block';
+                            const parent = target.parentElement;
+                            const errorMsg = parent?.querySelector('.img-error-msg-inv');
+                            if (errorMsg) errorMsg.remove();
+                        }}
+                      />
+                    ) : (
+                      <div className="text-sm text-gray-500 dark:text-gray-400 p-4 text-center">
+                        {isUploadingInventory ? 'Loading preview...' : 'Inventory image preview.'}
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    type="file"
+                    ref={inventoryFileInputRef}
+                    onChange={handleInventoryFileChange}
+                    accept="image/*"
+                    className="hidden"
+                  />
+                   {!imageUploadService && (
+                      <p className="text-xs text-red-500 mt-1 text-center">Image upload service not available.</p>
+                  )}
+                </div>
+              )}
 
               {/* TODO: Aggiungere altri campi specifici per Item */}
               <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
@@ -275,13 +444,7 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ imageUploadService }) =>
               </p>
               {/* Bottoni Azioni */}
               <div className="flex justify-end space-x-2 mt-6">
-                <button 
-                  type="button" 
-                  onClick={handleSaveChanges}
-                  className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-                >
-                  Save Changes
-                </button>
+                {/* Rimosso il pulsante Save Changes */}
                 <button type="button" className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600">
                   Delete Item
                 </button>
