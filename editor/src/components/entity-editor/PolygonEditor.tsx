@@ -77,6 +77,10 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
     // imageSize will be re-evaluated when imageUrl changes and the image loads
   }, [locationId, initialImageUrlFromEntity, initialPolygonsFromEntity]);
 
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
+
   const persistChangesToContext = useCallback(() => {
     const updatedEntities = entities.map(entity => {
       if (entity.type === 'Location' && entity.name === locationId) {
@@ -541,49 +545,55 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
 
 
   // Gestione upload file
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // Usa URL temporaneo per l'anteprima
-      const tempUrl = URL.createObjectURL(file);
-      setImageUrl(tempUrl);
-      setPolygons([]); // Resetta i poligoni quando cambia immagine
-      setCurrentPolygon([]);
-      setIsDrawing(false);
-      setImageSize(null); // Resetta image size finché non carica
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      // console.log('No file selected.');
+      return;
+    }
 
-      // Se fornita, usa la funzione di upload esterna
-      if (imageUploadService) {
-        setIsUploading(true);
-        try {
-          const permanentUrl = await imageUploadService(file);
-          setImageUrl(permanentUrl); // Aggiorna con l'URL permanente
-          console.log('Upload completato:', permanentUrl);
-          // Non chiamare onSave qui, l'utente deve salvare esplicitamente
-        } catch (error) {
-          console.error("Errore durante l'upload:", error);
-          alert("Errore durante il caricamento dell'immagine.");
-          setImageUrl(null); // Rimuovi l'immagine se l'upload fallisce
-           // Rimuovi l'URL temporaneo se l'upload fallisce
-           URL.revokeObjectURL(tempUrl);
-        } finally {
+    setIsUploading(true); // Imposta lo stato di caricamento per entrambi i casi
+
+    if (imageUploadService) { // Metodo preferito: usa il servizio fornito
+      try {
+        const newImageUrl = await imageUploadService(file);
+        setImageUrl(newImageUrl);
+        // persistChangesToContext sarà chiamato dall'useEffect che osserva imageUrl
+      } catch (error) {
+        console.error('Error uploading image via service:', error);
+        alert('Failed to upload image using service. Please try again.');
+        setImageUrl(initialImageUrlFromEntity || null); // Opzionale: ripristina o imposta a null
+      } finally {
+        setIsUploading(false);
+      }
+    } else { // Fallback: converti in base64 se non viene fornito alcun servizio
+      console.warn("PolygonEditor: imageUploadService is not provided. Converting image to base64 for local use.");
+      try {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          // reader.result contiene i dati come URL che rappresenta i dati del file come stringa codificata in base64
+          setImageUrl(reader.result as string);
           setIsUploading(false);
-        }
-      } else {
-        // Se non c'è servizio di upload, l'URL rimane temporaneo (blob)
-        console.warn("Nessun 'imageUploadService' fornito. L'immagine non verrà salvata permanentemente se non tramite onSave.");
+          // persistChangesToContext sarà chiamato dall'useEffect che osserva imageUrl
+        };
+        reader.onerror = (error) => {
+          console.error('Error converting file to base64:', error);
+          alert('Failed to convert image to base64.');
+          setImageUrl(initialImageUrlFromEntity || null); // Opzionale: ripristina o imposta a null
+          setIsUploading(false);
+        };
+        reader.readAsDataURL(file); // Questo avvia la conversione
+      } catch (error) { // Cattura errori sincroni dalla configurazione di FileReader (improbabile)
+        console.error('Error setting up FileReader for base64 conversion:', error);
+        alert('Failed to initiate image conversion.');
+        setImageUrl(initialImageUrlFromEntity || null);
+        setIsUploading(false);
       }
     }
-     // Resetta l'input per permettere ricarica stesso file
-     if(e.target) e.target.value = '';
   };
 
-  // Trigger input file
-  const triggerFileInput = () => {
-    // Assicurati che non stiamo caricando
-    if (!isUploading) {
-      fileInputRef.current?.click();
-    }
+  const handleImageUploadClick = () => {
+    fileInputRef.current?.click();
   };
 
   // Bottone Annulla disegno corrente

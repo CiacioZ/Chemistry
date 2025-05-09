@@ -11,6 +11,7 @@ import { saveDiagram, loadDiagram } from '@/components/flow-diagram/utils/saveLo
 import { LocationEditor } from '@/components/entity-editor/LocationEditor';
 import { ItemEditor } from '@/components/entity-editor/ItemEditor';
 import { CharacterEditor } from '@/components/entity-editor/CharacterEditor';
+import { PREDEFINED_ENTITIES } from '@/components/flow-diagram/types'; // Assicurati che sia importato
 
 const editorTabs: EditorTabType[] = ['Graph', 'Locations', 'Items', 'Characters'];
 
@@ -74,6 +75,21 @@ export default function EditorPage() {
   };
 
 
+  // Fornire un imageUploadService fittizio o reale se disponibile
+  const dummyImageUploadService = async (file: File): Promise<string> => {
+    console.log("Dummy imageUploadService called from EditorPage with:", file.name);
+    return new Promise(resolve => {
+      setTimeout(() => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          resolve(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+      }, 1000);
+    });
+  };
+
+
   const renderEditorContent = () => {
     switch (currentTab) {
       case 'Graph':
@@ -83,9 +99,9 @@ export default function EditorPage() {
           </div>
         );
       case 'Locations':
-        return <LocationEditor />;
+        return <LocationEditor imageUploadService={dummyImageUploadService}/>;
       case 'Items':
-        return <ItemEditor />;
+        return <ItemEditor imageUploadService={dummyImageUploadService} />; // <-- QUI VIENE PASSATO IL SERVIZIO
       case 'Characters':
         return <CharacterEditor />;
       default:

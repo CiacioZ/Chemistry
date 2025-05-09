@@ -88,6 +88,7 @@ export interface CharacterDetails {
 export interface ItemDetails {
   description?: string;
   canBePickedUp?: boolean;
+  imageData?: string; // Aggiunto campo per l'URL dell'immagine
   // Aggiungi qui altre proprietà specifiche per Item
 }
 
@@ -131,7 +132,7 @@ export const PREDEFINED_ENTITIES: AnyEntity[] = [ // Usiamo AnyEntity[] per magg
   {
     type: 'Character',
     name: 'MAIN_CHARACTER',
-    internal: true,
+    internal: false,
     details: {
       inventory: [],
       dialogueTree: undefined, // o un valore di default appropriato
@@ -144,6 +145,7 @@ export const PREDEFINED_ENTITIES: AnyEntity[] = [ // Usiamo AnyEntity[] per magg
     details: {
       description: 'Nothing special.',
       canBePickedUp: false,
+      imageData: '', // Aggiunto campo imageUrl
     }
   },
   {
@@ -153,6 +155,7 @@ export const PREDEFINED_ENTITIES: AnyEntity[] = [ // Usiamo AnyEntity[] per magg
     details: {
       description: 'An interesting item.',
       canBePickedUp: true,
+      imageData: '', // Aggiunto campo imageUrl
     }
   },
   {

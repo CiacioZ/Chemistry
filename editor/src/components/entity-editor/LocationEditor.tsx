@@ -14,7 +14,11 @@ interface LocationData {
   // Aggiungere altri campi come WalkableAreas, Items, etc.
 }
 
-export const LocationEditor: React.FC = () => {
+interface LocationEditorProps { // Aggiunta interfaccia Props
+  imageUploadService?: (file: File) => Promise<string>;
+}
+
+export const LocationEditor: React.FC<LocationEditorProps> = ({ imageUploadService }) => {
   const { entities, setEntities } = useDiagramContext(); // Get setEntities
 
   // Derive the list of location entities directly from the context
@@ -114,13 +118,7 @@ export const LocationEditor: React.FC = () => {
                     </div>
                 );
             }
-            const details = selectedLocationEntity.details || {}; // Ensure details is an object
-            // Fornire un imageUploadService fittizio o reale se disponibile
-            const dummyImageUploadService = async (file: File): Promise<string> => {
-              console.log("Dummy imageUploadService called with:", file.name);
-              // Simula un upload e restituisce un URL temporaneo o un placeholder
-              return new Promise(resolve => setTimeout(() => resolve(URL.createObjectURL(file)), 1000));
-            };
+            const details = selectedLocationEntity.details || {}; // Ensure details is an object            
 
             return (
               <PolygonEditor
@@ -130,7 +128,7 @@ export const LocationEditor: React.FC = () => {
                 initialPolygonsFromEntity={details.walkableAreas || []} // Access safely
                 entities={entities}
                 setEntities={setEntities}
-                imageUploadService={dummyImageUploadService} // Passare un imageUploadService effettivo se disponibile
+                imageUploadService={imageUploadService} // Passare un imageUploadService effettivo se disponibile
               />
             );
           })()
