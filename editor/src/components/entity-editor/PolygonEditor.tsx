@@ -23,6 +23,13 @@ interface PolygonEditorProps {
 
 // Costante per la tolleranza del click sui vertici
 const VERTEX_CLICK_TOLERANCE = 8; // Pixel sul canvas
+const EDGE_CLICK_TOLERANCE = 5; // Pixel sul canvas per cliccare su un lato
+
+// Informazioni sul lato selezionato
+interface EdgeInfo {
+  polygonIndex: number; // Indice del poligono in 'polygons' o -1 per 'currentPolygon'
+  vertexStartIndex: number; // Indice del primo vertice del lato nel poligono
+}
 
 export const PolygonEditor: React.FC<PolygonEditorProps> = ({
   locationId,
@@ -182,6 +189,62 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
   }, [imageSize]); // Dipende solo da imageSize e dalla funzione di scala (i dati dei poligoni li legge dai ref)
 
 
+  // --- NUOVA FUNZIONE: Trova un lato vicino a un punto del canvas ---
+  const findNearbyEdge = useCallback((canvasPoint: { x: number; y: number }): EdgeInfo | null => {
+    if (!imageSize || !canvasRef.current || !imageRef.current) return null;
+    const canvas = canvasRef.current;
+    const imageElement = imageRef.current;
+
+    const scaleX = imageElement.clientWidth / imageSize.width;
+    const scaleY = imageElement.clientHeight / imageSize.height;
+
+    const distToSegment = (p: Point, v: Point, w: Point): number => {
+      const l2 = (v.x - w.x) ** 2 + (v.y - w.y) ** 2;
+      if (l2 === 0) return Math.sqrt((p.x - v.x) ** 2 + (p.y - v.y) ** 2);
+      let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+      t = Math.max(0, Math.min(1, t));
+      const projection = { x: v.x + t * (w.x - v.x), y: v.y + t * (w.y - v.y) };
+      return Math.sqrt((p.x - projection.x) ** 2 + (p.y - projection.y) ** 2);
+    };
+
+    const checkPolygonEdges = (polygonArray: Polygon[], polyIndexOffset: number): EdgeInfo | null => {
+      for (let i = 0; i < polygonArray.length; i++) {
+        const poly = polygonArray[i];
+        if (poly.length < 2) continue;
+
+        for (let j = 0; j < poly.length; j++) {
+          const p1 = poly[j];
+          const p2 = poly[(j + 1) % poly.length]; // Gestisce la chiusura del poligono
+
+          // Converti i vertici del poligono (naturali) in coordinate canvas
+          const v1Canvas = { x: p1.x * scaleX, y: p1.y * scaleY };
+          const v2Canvas = { x: p2.x * scaleX, y: p2.y * scaleY };
+          
+          const distance = distToSegment(canvasPoint, v1Canvas, v2Canvas);
+
+          if (distance <= EDGE_CLICK_TOLERANCE) {
+            return { polygonIndex: polyIndexOffset === -1 ? -1 : i, vertexStartIndex: j };
+          }
+        }
+      }
+      return null;
+    };
+
+    // Controlla poligoni esistenti
+    let edgeInfo = checkPolygonEdges(polygonsRef.current, 0);
+    if (edgeInfo) return edgeInfo;
+
+    // Controlla poligono corrente (se ha almeno 2 punti)
+    if (currentPolygonRef.current.length >= 2) {
+        // Temporaneamente tratta currentPolygon come un array di poligoni con un solo elemento
+        edgeInfo = checkPolygonEdges([currentPolygonRef.current], -1);
+        if (edgeInfo) return edgeInfo;
+    }
+    
+    return null;
+  }, [imageSize]);
+
+
   // Disegna sul canvas
   const draw = useCallback(() => {
     if (!canvasRef.current || !imageRef.current || !imageSize) return;
@@ -321,27 +384,53 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
         e.preventDefault(); // Previene default se si inizia un drag
         setIsDrawing(false); // Non stiamo disegnando un nuovo poligono (il drag è un'altra modalità)
         setDraggingVertexInfo(nearbyVertex);
-        // Quando inizi a trascinare, non aggiungi un nuovo punto
         return;
     }
 
-    // 2. Se non stiamo trascinando un vertice, procedi con la logica di disegno
-    // Richiedi solo il tasto sinistro per aggiungere punti
-    if (e.button !== 0) return; // Solo tasto sinistro
+    // Solo tasto sinistro per le azioni successive
+    if (e.button !== 0) return;
 
-    const naturalPoint = getNaturalCoordinates(e);
-    if (!naturalPoint) return;
+    const naturalClickPoint = getNaturalCoordinates(e);
+    if (!naturalClickPoint) return;
 
-    // Se non stiamo disegnando, inizia un nuovo poligono
-    if (!isDrawing) {
-        setIsDrawing(true);
-        setCurrentPolygon([naturalPoint]);
-    } else {
-         // Se stiamo già disegnando, aggiungi un punto
-        setCurrentPolygon(prev => [...prev, naturalPoint]);
+    // 2. Controlla se stiamo cliccando su un lato esistente
+    const nearbyEdge = findNearbyEdge(canvasPoint);
+    if (nearbyEdge) {
+        e.preventDefault();
+        setIsDrawing(false); // Non stiamo disegnando un nuovo poligono
+
+        const { polygonIndex, vertexStartIndex } = nearbyEdge;
+
+        if (polygonIndex === -1) { // Lato del poligono corrente
+            setCurrentPolygon(prev => {
+                const newPoly = [...prev];
+                newPoly.splice(vertexStartIndex + 1, 0, naturalClickPoint);
+                return newPoly;
+            });
+            // Opzionale: inizia a trascinare il nuovo vertice
+            setDraggingVertexInfo({ polygonIndex: -1, vertexIndex: vertexStartIndex + 1 });
+        } else { // Lato di un poligono esistente
+            setPolygons(prev => {
+                const newPolys = [...prev];
+                const targetPoly = [...newPolys[polygonIndex]];
+                targetPoly.splice(vertexStartIndex + 1, 0, naturalClickPoint);
+                newPolys[polygonIndex] = targetPoly;
+                return newPolys;
+            });
+            // Opzionale: inizia a trascinare il nuovo vertice
+            setDraggingVertexInfo({ polygonIndex: polygonIndex, vertexIndex: vertexStartIndex + 1 });
+        }
+        return;
     }
 
-    // Nota: Non c'è più la logica per chiudere il poligono qui (come con il doppio click vicino al primo punto)
+
+    // 3. Se non stiamo trascinando un vertice e non clicchiamo su un lato, procedi con la logica di disegno
+    if (!isDrawing) {
+        setIsDrawing(true);
+        setCurrentPolygon([naturalClickPoint]);
+    } else {
+        setCurrentPolygon(prev => [...prev, naturalClickPoint]);
+    }
   };
 
   // Gestione movimento mouse - SOLO canvas (per hover e per aggiornare posizione durante drag)
