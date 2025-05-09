@@ -82,14 +82,16 @@ export interface Entity {
 export interface CharacterDetails {
   inventory?: string[]; // Array di ID di Item
   dialogueTree?: string; // ID o riferimento all'albero di dialogo
-  // Aggiungi qui altre proprietà specifiche per Character
+  animations?: { [id: string] : string ; }
 }
 
 export interface ItemDetails {
   description?: string;
   canBePickedUp?: boolean;
-  imageData?: string; // Aggiunto campo per l'URL dell'immagine
-  // Aggiungi qui altre proprietà specifiche per Item
+  useWith: boolean;
+  imageData?: string;
+  inventoryImageData?: string;
+  animations?: { [id: string] : string ; }
 }
 
 // Aggiunta: Tipo unione per tutti i dettagli delle entità
@@ -104,9 +106,10 @@ export type Polygon = Point[];
 
 export interface LocationDetails {
   backgroundImage: string | null;
-  walkableAreas: Polygon[];
-  // Aggiungi qui altre proprietà specifiche per Location (es. description, walkableAreas, etc.)
+  walkableAreas: Polygon[];  
   description?: string;
+  placedItems?: { entityId: string; position: Point, interactionSpot: Point }[];
+  placedCharacters?: { entityId: string; position: Point, interactionSpot: Point }[];
 }
 
 export interface LocationEntity extends Entity {
@@ -145,7 +148,9 @@ export const PREDEFINED_ENTITIES: AnyEntity[] = [ // Usiamo AnyEntity[] per magg
     details: {
       description: 'Nothing special.',
       canBePickedUp: false,
-      imageData: '', // Aggiunto campo imageUrl
+      imageData: '',
+      inventoryImageData: '', 
+      useWith: false 
     }
   },
   {
@@ -155,7 +160,8 @@ export const PREDEFINED_ENTITIES: AnyEntity[] = [ // Usiamo AnyEntity[] per magg
     details: {
       description: 'An interesting item.',
       canBePickedUp: true,
-      imageData: '', // Aggiunto campo imageUrl
+      inventoryImageData: '', 
+      useWith: false 
     }
   },
   {

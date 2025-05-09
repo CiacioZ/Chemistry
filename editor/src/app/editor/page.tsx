@@ -11,7 +11,7 @@ import { saveDiagram, loadDiagram } from '@/components/flow-diagram/utils/saveLo
 import { LocationEditor } from '@/components/entity-editor/LocationEditor';
 import { ItemEditor } from '@/components/entity-editor/ItemEditor';
 import { CharacterEditor } from '@/components/entity-editor/CharacterEditor';
-import { PREDEFINED_ENTITIES } from '@/components/flow-diagram/types'; // Assicurati che sia importato
+import { PREDEFINED_ENTITIES } from '@/components/flow-diagram/types'; // Questo import dovrebbe essere già presente
 
 const editorTabs: EditorTabType[] = ['Graph', 'Locations', 'Items', 'Characters'];
 
@@ -68,7 +68,7 @@ export default function EditorPage() {
     // Altrimenti, chiama le singole funzioni:
     pushNodes([]);
     setProjectName('Nuovo Progetto');
-    setEntities([]);
+    setEntities(PREDEFINED_ENTITIES); // MODIFICATO: Resetta alle entità predefinite invece di un array vuoto
     setCurrentTab('Graph'); // Assicurati che la tab del diagramma sia attiva
     // Potresti anche voler navigare via e tornare, ma resettare lo stato è più semplice
     // router.push('/'); // Opzionale: torna alla home page
