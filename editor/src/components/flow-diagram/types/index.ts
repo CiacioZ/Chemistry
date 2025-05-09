@@ -134,8 +134,8 @@ export type AnyEntity = LocationEntity | CharacterEntity | ItemEntity;
 export const PREDEFINED_ENTITIES: AnyEntity[] = [ // Usiamo AnyEntity[] per maggiore specificità
   {
     type: 'Character',
-    name: 'MAIN_CHARACTER',
-    internal: false,
+    name: 'SOMEONE',
+    internal: true,
     details: {
       inventory: [],
       dialogueTree: undefined, // o un valore di default appropriato
