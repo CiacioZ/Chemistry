@@ -144,6 +144,20 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ imageUploadService }) =>
     setSelectedItemId(id);
   };
 
+  const handleDeleteItem = useCallback((itemIdToDelete: string) => {
+    if (window.confirm(`Sei sicuro di voler cancellare l'item "${itemIdToDelete}"? Questa azione non può essere annullata.`)) {
+      // Calculate the new entities array by filtering out the item to delete
+      const newEntities = entities.filter((entity: Entity) => entity.name !== itemIdToDelete);
+      setEntities(newEntities); // Pass the new array directly
+
+      if (selectedItemId === itemIdToDelete) {
+        setSelectedItemId(null);
+        setFormData({});
+      }
+      // Potresti voler mostrare una notifica di successo qui
+    }
+  }, [selectedItemId, setEntities, entities]); // Added `entities` to the dependency array
+
   // Rimuoviamo handleSaveChanges
   // const handleSaveChanges = () => { ... };
 
@@ -232,12 +246,27 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ imageUploadService }) =>
           {graphItems.map((item) => (
             <li
               key={item.name}
-              onClick={() => handleSelectItem(item.name)}
-              className={`p-2 mb-1 rounded cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 ${
+              // onClick={() => handleSelectItem(item.name)} // Spostato per permettere click separati
+              className={`flex justify-between items-center p-2 mb-1 rounded cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 ${
                 selectedItemId === item.name ? 'bg-blue-100 dark:bg-blue-800 font-semibold' : ''
               }`}
             >
-              {item.name}
+              <span onClick={() => handleSelectItem(item.name)} className="flex-grow"> {/* Clicca sul nome per selezionare */}
+                {item.name}
+              </span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation(); // Impedisce al click di propagarsi al li e selezionare l'item
+                  handleDeleteItem(item.name);
+                }}
+                className="ml-2 p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 rounded-full hover:bg-red-100 dark:hover:bg-red-700/50 focus:outline-none"
+                aria-label={`Delete ${item.name}`}
+                title={`Delete ${item.name}`}
+              >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              </button>
             </li>
           ))}
         </ul>
