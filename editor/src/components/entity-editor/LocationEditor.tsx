@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react'; // Added useMemo
+import React, { useState, useEffect, useMemo, useCallback } from 'react'; // Added useMemo
 import { useDiagramContext } from '../flow-diagram/contexts/DiagramContext';
 import { Entity, LocationEntity } from '../flow-diagram/types'; // Import LocationEntity
 import { PolygonEditor } from './PolygonEditor';
@@ -73,6 +73,20 @@ export const LocationEditor: React.FC<LocationEditorProps> = ({ imageUploadServi
     setSelectedLocationId(id);
   };
 
+  const handleDeleteLocation = useCallback((locationIdToDelete: string) => {
+    if (window.confirm(`Sei sicuro di voler cancellare l'item "${locationIdToDelete}"? Questa azione non può essere annullata.`)) {
+      // Calculate the new entities array by filtering out the item to delete
+      const newEntities = entities.filter((entity: Entity) => entity.name !== locationIdToDelete);
+      setEntities(newEntities); // Pass the new array directly
+
+      if (selectedLocationId === locationIdToDelete) {
+        setSelectedLocationId(null);
+        setFormData({});
+      }
+      // Potresti voler mostrare una notifica di successo qui
+    }
+  }, [selectedLocationId, setEntities, entities]); 
+
   // TODO: Implement functions for saving changes, creating new locations (adding to entities), deleting locations (removing from entities)
 
   return (
@@ -84,19 +98,32 @@ export const LocationEditor: React.FC<LocationEditorProps> = ({ imageUploadServi
         {/* TODO: Aggiungere bottone "New Location" (should add a new Entity to context) */}
         <ul>
           {/* Map over graphLocations (derived from entities) */}
-          {graphLocations.map((loc) => (
+          {graphLocations.map((loc) => (          
             <li
               // Use loc.value as the key, as it's the unique identifier from the Entity
               key={loc.name}
-              // Pass loc.value to the selection handler
-              onClick={() => handleSelectLocation(loc.name)}
-              className={`p-2 mb-1 rounded cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 ${
+              className={`flex justify-between items-center p-2 mb-1 rounded cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 ${
                 // Compare selectedLocationId with loc.value
                 selectedLocationId === loc.name ? 'bg-blue-100 dark:bg-blue-800 font-semibold' : ''
               }`}
             >
-              {/* Display loc.value */}
+              <span onClick={() => handleSelectLocation(loc.name)} className="flex-grow"> {/* Clicca sul nome per selezionare */}
               {loc.name}
+              </span>
+
+            <button
+              onClick={(e) => {
+                e.stopPropagation(); // Impedisce al click di propagarsi al li e selezionare l'item
+                handleDeleteLocation(loc.name);
+              }}
+              className="ml-2 p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 rounded-full hover:bg-red-100 dark:hover:bg-red-700/50 focus:outline-none"
+              aria-label={`Delete ${loc.name}`}
+              title={`Delete ${loc.name}`}
+            >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            </button>          
             </li>
           ))}
         </ul>
