@@ -443,8 +443,7 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ imageUploadService }) =>
                 Altri campi specifici per gli Item verranno aggiunti qui...
               </p>
               {/* Bottoni Azioni */}
-              <div className="flex justify-end space-x-2 mt-6">
-                {/* Rimosso il pulsante Save Changes */}
+              <div className="flex justify-end space-x-2 mt-6">               
                 <button type="button" className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600">
                   Delete Item
                 </button>

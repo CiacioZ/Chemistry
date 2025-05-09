@@ -1,47 +1,109 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react'; // Aggiunto useRef
 import { useDiagramContext } from '../flow-diagram/contexts/DiagramContext';
-import { Entity } from '../flow-diagram/types';
+import { Entity, CharacterEntity } from '../flow-diagram/types'; // Manteniamo Entity, useremo un cast o un tipo più specifico se necessario
 
-// TODO: Definire un'interfaccia basata sulla struct model.Character di Go
+// Interfaccia per il formData, che include l'ID e il nome (che sono a livello radice dell'entità)
+// più i dettagli specifici.
 interface CharacterData {
-  id: string; // Corresponds to Entity.value
-  name: string;
+  id: string; // Corrisponde a Entity.name
+  name: string; // Corrisponde a Entity.name
   description: string;
-  // Aggiungere altri campi specifici per i Character (es. sprite, dialoghi, inventario...)
 }
 
 export const CharacterEditor: React.FC = () => {
-  const { entities } = useDiagramContext();
+  const { entities, setEntities } = useDiagramContext(); // Aggiunto setEntities
 
   // Filtra le entità per ottenere solo i Character
   const graphCharacters = useMemo(() => {
-    return entities.filter((entity): entity is Entity & { type: 'Character' } => entity.type === 'Character' && entity.internal === false );
+    return entities.filter((entity): entity is CharacterEntity => entity.type === 'Character' && entity.internal === false );
   }, [entities]);
 
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<CharacterData>>({});
 
+  // Ref per tracciare se il formData corrente è il caricamento iniziale per il character selezionato
+  const isInitialDataLoad = useRef(false);
+
   useEffect(() => {
     if (selectedCharacterId) {
       const selectedEntity = graphCharacters.find(char => char.name === selectedCharacterId);
       if (selectedEntity) {
-        // TODO: Caricare dati dettagliati salvati per questo Character ID
+        isInitialDataLoad.current = true; // Segna che stiamo caricando i dati iniziali
         setFormData({
           id: selectedEntity.name,
-          name: selectedEntity.name, // Default name
-          description: '', // Default empty
-          // Inizializzare altri campi specifici del Character
+          name: selectedEntity.name,
+          description: selectedEntity.details?.description || '',
+          // Inizializzare altri campi da selectedEntity.details se presenti
         });
       } else {
-        setSelectedCharacterId(null);
+        setSelectedCharacterId(null); // Character non trovato, deseleziona
         setFormData({});
       }
     } else {
-      setFormData({});
+      setFormData({}); // Nessun character selezionato
     }
   }, [selectedCharacterId, graphCharacters]);
+
+
+  // useEffect per l'auto-salvataggio
+  useEffect(() => {
+    // 1. Non salvare se è il caricamento iniziale dei dati.
+    if (isInitialDataLoad.current) {
+      isInitialDataLoad.current = false; // Resetta il flag per le modifiche successive
+      return;
+    }
+
+    // 2. Salva solo se un character è selezionato e formData è popolato.
+    if (!selectedCharacterId || !formData.id) {
+      return;
+    }
+
+    const characterToUpdateKey = selectedCharacterId;
+
+    // Gestione del rename: se formData.name è diverso da characterToUpdateKey
+    const newName = formData.name;
+    if (newName && newName !== characterToUpdateKey) {
+      const isNameTaken = entities.some(e => e.name === newName && e.name !== characterToUpdateKey);
+      if (isNameTaken) {
+        alert(`Il nome del character "${newName}" è già in uso. Modifica del nome annullata.`);
+        // Ripristina il nome nel formData per evitare loop se l'utente continua a digitare
+        setFormData(prev => ({ ...prev, name: characterToUpdateKey }));
+        return;
+      }
+    }
+
+    const newEntitiesValue: Entity[] = entities.map((entity: Entity) => {
+      if (entity.type === 'Character' && entity.name === characterToUpdateKey) {
+        const currentEntity = entity as CharacterEntity; // Cast a CharacterEntity
+        return {
+          ...currentEntity,
+          name: formData.name || currentEntity.name, // Aggiorna il nome a livello radice
+          details: {
+            ...(currentEntity.details || {}),
+            description: formData.description || '',
+            // Salva altri campi specifici del character da formData qui
+          },
+        };
+      }
+      return entity;
+    });
+
+    if (JSON.stringify(entities) !== JSON.stringify(newEntitiesValue)) {
+      setEntities(newEntitiesValue);
+    }
+
+    // Se il rename ha avuto successo, aggiorna selectedCharacterId al nuovo nome
+    if (newName && newName !== characterToUpdateKey) {
+      // Verifica che il nome sia ancora disponibile nel nuovo array (potrebbe essere ridondante)
+      const nameStillAvailableInNewArray = !newEntitiesValue.some(e => e.name === newName && e.name !== newName);
+      if (nameStillAvailableInNewArray) {
+           setSelectedCharacterId(newName);
+       }
+    }
+  }, [formData, selectedCharacterId, setEntities, entities]); // `entities` è ora una dipendenza
+
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -49,14 +111,14 @@ export const CharacterEditor: React.FC = () => {
       ...prevData,
       [name]: value,
     }));
-    // TODO: Logica di salvataggio
+    // L'useEffect che osserva formData gestirà il salvataggio.
   };
 
   const handleSelectCharacter = (id: string) => {
     setSelectedCharacterId(id);
   };
 
-  // TODO: Implementare funzioni Save, Create New, Delete
+  // TODO: Implementare funzioni Create New, Delete (i bottoni verranno rimossi o modificati)
 
   return (
     <div className="flex h-full space-x-4">
@@ -130,15 +192,13 @@ export const CharacterEditor: React.FC = () => {
             <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
               Altri campi specifici per i Character verranno aggiunti qui...
             </p>
-            {/* Bottoni Azioni */}
-            <div className="flex justify-end space-x-2 mt-6">
-              <button type="button" className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">
-                Save Changes
-              </button>
+            {/* Bottoni Azioni - Verranno rimossi o modificati se l'auto-save copre tutto */}
+            
+            <div className="flex justify-end space-x-2 mt-6">              
               <button type="button" className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600">
                 Delete Character
               </button>
-            </div>
+            </div>            
           </form>
         ) : (
           <div className="text-center text-gray-500 dark:text-gray-400 mt-10">

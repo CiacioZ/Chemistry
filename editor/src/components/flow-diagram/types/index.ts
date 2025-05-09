@@ -80,6 +80,7 @@ export interface Entity {
 }
 
 export interface CharacterDetails {
+  description?: string;
   inventory?: string[]; // Array di ID di Item
   dialogueTree?: string; // ID o riferimento all'albero di dialogo
   animations?: { [id: string] : string ; }
