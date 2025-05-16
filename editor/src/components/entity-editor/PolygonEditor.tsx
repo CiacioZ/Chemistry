@@ -303,11 +303,11 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
           ctx.closePath();
       } else if (poly.length === 1) {
            // Se c'è solo un punto, disegna solo quello (opzionale)
-           drawVertex(poly[0], 'rgba(255, 0, 0, 0.8)', 4, false, false);
+           drawVertex(poly[0], 'rgba(0, 255, 0, 0.8)', 4, false, false); // Verde per poligoni completati
            return; // Passa al poligono successivo
       }
 
-      ctx.strokeStyle = 'rgba(255, 0, 0, 0.8)'; // Rosso per poligoni salvati
+      ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)'; // Verde per poligoni completati
       ctx.lineWidth = 2;
       ctx.stroke();
 
@@ -315,7 +315,7 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
       poly.forEach((p, vertexIndex) => {
           const isHovered = hoveredVertexInfo?.polygonIndex === polyIndex && hoveredVertexInfo?.vertexIndex === vertexIndex;
           const isDragging = draggingVertexInfo?.polygonIndex === polyIndex && draggingVertexInfo?.vertexIndex === vertexIndex;
-          drawVertex(p, 'rgba(255, 0, 0, 0.8)', 4, isHovered, isDragging);
+          drawVertex(p, 'rgba(0, 255, 0, 0.8)', 4, isHovered, isDragging); // Verde per poligoni completati
       });
     });
 
@@ -331,7 +331,7 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
        // Se volessi implementarlo, dovresti aggiungere uno stato `mousePosition` aggiornato
        // nell'handleMouseMove e passarlo come dipendenza a draw.
 
-      ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)'; // Verde per poligono in corso
+      ctx.strokeStyle = 'rgba(255, 0, 0, 0.8)'; // Rosso per poligono in corso
       ctx.lineWidth = 2;
       ctx.stroke();
 
@@ -339,7 +339,7 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
       currentPolygon.forEach((p, vertexIndex) => {
         const isHovered = hoveredVertexInfo?.polygonIndex === -1 && hoveredVertexInfo?.vertexIndex === vertexIndex;
         const isDragging = draggingVertexInfo?.polygonIndex === -1 && draggingVertexInfo?.vertexIndex === vertexIndex;
-        drawVertex(p, 'rgba(0, 255, 0, 0.8)', 4, isHovered, isDragging);
+        drawVertex(p, 'rgba(255, 0, 0, 0.8)', 4, isHovered, isDragging); // Rosso per poligono in corso
       });
     }
   }, [polygons, currentPolygon, imageSize, hoveredVertexInfo, draggingVertexInfo, imageUrl]); // Added imageUrl dependency
@@ -737,7 +737,7 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
                 <canvas
                   ref={canvasRef}
                   className="absolute top-0 left-0 w-full h-full"
-                  style={{ zIndex: 2, cursor: draggingVertexInfo ? 'grabbing' : (hoveredVertexInfo ? 'grab' : (isDrawing ? 'crosshair' : 'default')) }} // Cambia cursore
+                  style={{ zIndex: 2, cursor: draggingVertexInfo ? 'grabbing' : (hoveredVertexInfo ? 'grab' : (isDrawing ? 'crosshair' : 'crosshair')) }} // Cambia cursore
                   onMouseDown={handleCanvasMouseDown}
                   onMouseMove={handleCanvasMouseMove}
                   onMouseLeave={handleCanvasMouseLeave}
