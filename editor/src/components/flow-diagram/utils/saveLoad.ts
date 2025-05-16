@@ -1,5 +1,5 @@
 // src/components/flow-diagram/utils/saveLoad.ts
-import { Node, Entity, PREDEFINED_ENTITIES } from '../types';
+import { Node, Entity, PREDEFINED_ENTITIES } from '../types/index';
 
 interface DiagramData {
   version: string;

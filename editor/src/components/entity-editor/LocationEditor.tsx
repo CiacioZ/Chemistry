@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'; // Added useMemo
+import React, { useState, useEffect, useMemo, useCallback, Dispatch, SetStateAction } from 'react'; // Added useMemo
 import { useDiagramContext } from '../flow-diagram/contexts/DiagramContext';
-import { Entity, LocationEntity } from '../flow-diagram/types'; // Import LocationEntity
+import { Entity, LocationEntity, ItemEntity, CharacterEntity } from '../flow-diagram/types'; // Importa ItemEntity e CharacterEntity
 import { PolygonEditor } from './PolygonEditor';
+import { PlacementEditor } from './PlacementEditor'; // Assicurati che questo import sia corretto
 
 // Interface for the detailed location data used in the form
 interface LocationData {
@@ -12,11 +13,17 @@ interface LocationData {
   description: string;
   background: string;
   // Aggiungere altri campi come WalkableAreas, Items, etc.
+  placedObjects?: Array<{ entityId: string; x: number; y: number }>; // Esempio per oggetti piazzati
+  placedCharacters?: Array<{ entityId: string; x: number; y: number }>; // Esempio per personaggi piazzati
 }
 
 interface LocationEditorProps { // Aggiunta interfaccia Props
   imageUploadService?: (file: File) => Promise<string>;
+  setEntities: Dispatch<SetStateAction<Entity[]>>; // MODIFICATO
 }
+
+// Definiamo i tipi per le modalità di editing
+type EditorMode = 'polygons' | 'placement';
 
 export const LocationEditor: React.FC<LocationEditorProps> = ({ imageUploadService }) => {
   const { entities, setEntities } = useDiagramContext(); // Get setEntities
@@ -32,6 +39,8 @@ export const LocationEditor: React.FC<LocationEditorProps> = ({ imageUploadServi
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
   // State for the detailed form data (using LocationData interface)
   const [formData, setFormData] = useState<Partial<LocationData>>({});
+  // Stato per la modalità di editing corrente
+  const [editorMode, setEditorMode] = useState<EditorMode>('polygons');
 
   // Effect to load/reset form data when selection changes
   useEffect(() => {
@@ -47,6 +56,9 @@ export const LocationEditor: React.FC<LocationEditorProps> = ({ imageUploadServi
           description: details.description || '', // Access safely
           background: details.backgroundImage || '', // Access safely
         });
+        // Potrebbe essere utile resettare la modalità quando si cambia location,
+        // o mantenerla, a seconda della UX desiderata. Per ora la manteniamo.
+        // setEditorMode('polygons'); 
       } else {
         // If the selected ID doesn't match any current entity, reset
         setSelectedLocationId(null);
@@ -71,6 +83,8 @@ export const LocationEditor: React.FC<LocationEditorProps> = ({ imageUploadServi
   // Handler for selecting a location from the list
   const handleSelectLocation = (id: string) => {
     setSelectedLocationId(id);
+    // Opzionale: resettare la modalità di editing quando si seleziona una nuova location
+    // setEditorMode('polygons'); 
   };
 
   const handleDeleteLocation = useCallback((locationIdToDelete: string) => {
@@ -130,35 +144,83 @@ export const LocationEditor: React.FC<LocationEditorProps> = ({ imageUploadServi
       </div> {/* Closing tag for the left column div */}
 
       {/* Colonna Destra: Form di Editing */}
-      <div className="w-2/3 border rounded-md shadow-sm p-4 bg-white dark:bg-gray-800 overflow-y-auto">
+      <div className="w-2/3 border rounded-md shadow-sm p-4 bg-white dark:bg-gray-800 overflow-y-auto flex flex-col">
         <h2 className="text-xl font-semibold mb-4">Location Details</h2>
         {selectedLocationId ? (
-          (() => {
-            const selectedLocationEntity = entities.find(
-                (e): e is LocationEntity => e.type === 'Location' && e.name === selectedLocationId
-            );
-            
-            if (!selectedLocationEntity) {
-                return (
-                    <div className="text-center text-gray-500 dark:text-gray-400 mt-10">
-                        Selected location not found.
-                    </div>
-                );
-            }
-            const details = selectedLocationEntity.details || {}; // Ensure details is an object            
+          <>
+            {/* Selettore Modalità di Editing */}
+            <div className="mb-4 flex space-x-2 border-b pb-2">
+              <button
+                onClick={() => setEditorMode('polygons')}
+                className={`px-4 py-2 rounded-md text-sm font-medium
+                            ${editorMode === 'polygons' 
+                              ? 'bg-indigo-600 text-white' 
+                              : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500'}`}
+              >
+                Edit Walkable Areas
+              </button>
+              <button
+                onClick={() => setEditorMode('placement')}
+                className={`px-4 py-2 rounded-md text-sm font-medium
+                            ${editorMode === 'placement' 
+                              ? 'bg-indigo-600 text-white' 
+                              : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500'}`}
+              >
+                Place Objects/Actors
+              </button>
+            </div>
 
-            return (
-              <PolygonEditor
-                key={selectedLocationId} // Ensures re-initialization when location changes
-                locationId={selectedLocationId}
-                initialImageUrlFromEntity={details.backgroundImage || null} // Access safely
-                initialPolygonsFromEntity={details.walkableAreas || []} // Access safely
-                entities={entities}
-                setEntities={setEntities}
-                imageUploadService={imageUploadService} // Passare un imageUploadService effettivo se disponibile
-              />
-            );
-          })()
+            {/* Contenuto dell'Editor condizionale */}
+            <div className="flex-grow"> {/* Questo div si espanderà per riempire lo spazio */}
+              {(() => {
+                const selectedLocationEntity = entities.find(
+                    (e): e is LocationEntity => e.type === 'Location' && e.name === selectedLocationId
+                );
+                
+                if (!selectedLocationEntity) {
+                    return (
+                        <div className="text-center text-gray-500 dark:text-gray-400 mt-10">
+                            Selected location not found.
+                        </div>
+                    );
+                }
+                const details = selectedLocationEntity.details || {};         
+
+                if (editorMode === 'polygons') {
+                  return (
+                    <PolygonEditor
+                      key={`${selectedLocationId}-polygons`} // Key univoca per forzare il remount se necessario
+                      locationId={selectedLocationId}
+                      initialImageUrlFromEntity={details.backgroundImage || null}
+                      initialPolygonsFromEntity={details.walkableAreas || []}
+                      entities={entities}
+                      setEntities={setEntities}
+                      imageUploadService={imageUploadService}
+                    />
+                  );
+                } else if (editorMode === 'placement') {
+                  // Filtra per ottenere solo Item e Character per le liste di selezione
+                  const itemsForPlacement = entities.filter((e): e is ItemEntity => e.type === 'Item' && e.internal !== true);
+                  const charactersForPlacement = entities.filter((e): e is CharacterEntity => e.type === 'Character' && e.internal !== true);
+                  
+                  return (
+                    <PlacementEditor
+                      key={`${selectedLocationId}-placement`}
+                      locationId={selectedLocationId}
+                      locationImageUrl={details.backgroundImage || null}
+                      initialPlacedObjects={details.placedItems || []} // da LocationEntityDetails
+                      initialPlacedCharacters={details.placedCharacters || []} // da LocationEntityDetails
+                      allItems={itemsForPlacement}
+                      allCharacters={charactersForPlacement}
+                      entities={entities} // Passa l'array completo di entità
+                      setEntities={setEntities} // Passa la funzione per aggiornare le entità
+                    />
+                  );
+                }
+                return null; // Non dovrebbe accadere se editorMode è sempre uno dei valori validi
+              })()}
+            </div>
+          </>
         ) : (
           <div className="text-center text-gray-500 dark:text-gray-400 mt-10">
             Select a location from the list to view or edit its details.

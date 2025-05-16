@@ -11,7 +11,7 @@ import { saveDiagram, loadDiagram } from '@/components/flow-diagram/utils/saveLo
 import { LocationEditor } from '@/components/entity-editor/LocationEditor';
 import { ItemEditor } from '@/components/entity-editor/ItemEditor';
 import { CharacterEditor } from '@/components/entity-editor/CharacterEditor';
-import { PREDEFINED_ENTITIES } from '@/components/flow-diagram/types'; // Questo import dovrebbe essere già presente
+import { PREDEFINED_ENTITIES } from '@/components/flow-diagram/types/index'; // Questo import dovrebbe essere già presente
 
 const editorTabs: EditorTabType[] = ['Graph', 'Locations', 'Items', 'Characters'];
 
@@ -99,7 +99,7 @@ export default function EditorPage() {
           </div>
         );
       case 'Locations':
-        return <LocationEditor imageUploadService={dummyImageUploadService}/>;
+        return <LocationEditor imageUploadService={dummyImageUploadService} setEntities={setEntities}/>;
       case 'Items':
         return <ItemEditor imageUploadService={dummyImageUploadService} />; // <-- QUI VIENE PASSATO IL SERVIZIO
       case 'Characters':

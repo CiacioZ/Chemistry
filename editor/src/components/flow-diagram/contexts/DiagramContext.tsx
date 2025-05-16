@@ -1,14 +1,14 @@
 "use client"
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { Node, Entity, PREDEFINED_ENTITIES } from '../types';
+import React, { createContext, useContext, useState, ReactNode, Dispatch, SetStateAction } from 'react'; // AGGIUNTO Dispatch, SetStateAction
+import { Node, Entity, PREDEFINED_ENTITIES } from '../types/index';
 import { useHistory } from '../hooks/useHistory';
 
 interface DiagramContextType {
   nodes: Node[];
   pushNodes: (nodes: Node[]) => void;
   entities: Entity[];
-  setEntities: (entities: Entity[]) => void;
+  setEntities: Dispatch<SetStateAction<Entity[]>>; // MODIFICATO
   projectName: string;
   setProjectName: (name: string) => void;
   undoNodes: () => void;

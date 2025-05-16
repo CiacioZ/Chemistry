@@ -105,12 +105,18 @@ export interface Point {
 
 export type Polygon = Point[];
 
+export interface PlacedEntity {
+  entityId: string; 
+  position: Point;      
+  interactionSpot: Point; // Nuovo campo per il punto di interazione
+}
+
 export interface LocationDetails {
   backgroundImage: string | null;
   walkableAreas: Polygon[];  
   description?: string;
-  placedItems?: { entityId: string; position: Point, interactionSpot: Point }[];
-  placedCharacters?: { entityId: string; position: Point, interactionSpot: Point }[];
+  placedItems?: PlacedEntity[];
+  placedCharacters?: PlacedEntity[];
 }
 
 export interface LocationEntity extends Entity {

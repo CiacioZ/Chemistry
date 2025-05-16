@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Node, Entity, EntityType, VERBS } from '../types';
+import React, { useState, useEffect, Dispatch, SetStateAction } from 'react';
+import { Node, Entity, EntityType, VERBS } from '../types/index';
 import {
   Dialog,
   DialogContent,
@@ -105,7 +105,7 @@ import {
    onOpenChange: (open: boolean) => void;
    onUpdate: (id: string, updates: Partial<Node>) => void;
    entities: Entity[];
-   setEntities: (entities: Entity[]) => void;
+   setEntities: Dispatch<SetStateAction<Entity[]>>; // MODIFICATO
  }> = ({
    node,
    open,
