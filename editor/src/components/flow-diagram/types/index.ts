@@ -84,6 +84,7 @@ export interface CharacterDetails {
   inventory?: string[]; // Array di ID di Item
   dialogueTree?: string; // ID o riferimento all'albero di dialogo
   animations?: { [id: string] : string ; }
+  imageData?: string;
 }
 
 export interface ItemDetails {

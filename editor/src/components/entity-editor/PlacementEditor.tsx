@@ -27,6 +27,7 @@ export const PlacementEditor: React.FC<PlacementEditorProps> = ({
   const [placedCharacters, setPlacedCharacters] = useState<PlacedEntity[]>(initialPlacedCharacters);
   const [selectedEntityTypeToPlace, setSelectedEntityTypeToPlace] = useState<'Item' | 'Character' | null>(null);
   const [selectedEntityIdToPlace, setSelectedEntityIdToPlace] = useState<string | null>(null);
+  const [cursorImageUrl, setCursorImageUrl] = useState<string | null>(null); // Stato per l'URL dell'immagine del cursore
   
   const imageContainerRef = useRef<HTMLDivElement>(null);
 
@@ -39,7 +40,7 @@ export const PlacementEditor: React.FC<PlacementEditorProps> = ({
             ...entity,
             details: {
               ...(entity.details || {}), 
-              placedItems: placedObjects, // Modificato da placedItems per coerenza
+              placedItems: placedObjects, // Corretto da placedItems a placedObjects
               placedCharacters: placedCharacters,
             }
           } as LocationEntity;
@@ -48,6 +49,25 @@ export const PlacementEditor: React.FC<PlacementEditorProps> = ({
       })
     );
   }, [placedObjects, placedCharacters, locationId, setEntities]);
+
+  // Effetto per aggiornare l'immagine del cursore quando un'entità viene selezionata
+  useEffect(() => {
+    if (selectedEntityIdToPlace && selectedEntityTypeToPlace) {
+      let imgSrc: string | undefined | null = null;
+      if (selectedEntityTypeToPlace === 'Item') {
+        const itemEntity = allItems.find(i => i.name === selectedEntityIdToPlace);
+        imgSrc = itemEntity?.details?.inventoryImageData || itemEntity?.details?.imageData;
+      } else if (selectedEntityTypeToPlace === 'Character') {
+        const charEntity = allCharacters.find(c => c.name === selectedEntityIdToPlace);
+        // Assumendo che i personaggi possano avere 'mapSprite' o un fallback.
+        // Dovrai adattare 'charEntity?.details?.mapSprite' alla struttura effettiva dei dati del tuo personaggio.
+        imgSrc = (charEntity?.details as any)?.mapSprite || charEntity?.details?.imageData; // Esempio, adatta se necessario
+      }
+      setCursorImageUrl(imgSrc || null);
+    } else {
+      setCursorImageUrl(null); // Rimuovi l'immagine del cursore se nulla è selezionato
+    }
+  }, [selectedEntityIdToPlace, selectedEntityTypeToPlace, allItems, allCharacters]);
 
 
   const handleMapClick = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -151,7 +171,12 @@ export const PlacementEditor: React.FC<PlacementEditorProps> = ({
         )}
       </div>
 
-      <div className="flex-grow relative border rounded-md overflow-hidden" ref={imageContainerRef} onClick={handleMapClick}>
+      <div 
+        className="flex-grow relative border rounded-md overflow-hidden" 
+        ref={imageContainerRef} 
+        onClick={handleMapClick}
+        style={cursorImageUrl ? { cursor: `url(${cursorImageUrl}) 16 16, auto` } : { cursor: 'auto' }} // Applica lo stile del cursore
+      >
         {locationImageUrl ? (
           <img src={locationImageUrl} alt={`Background for ${locationId}`} className="w-full h-full object-contain" />
         ) : (
