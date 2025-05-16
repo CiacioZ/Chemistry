@@ -32,14 +32,14 @@ export const PlacementEditor: React.FC<PlacementEditorProps> = ({
 
   // Effetto per aggiornare lo stato globale quando placedObjects o placedCharacters cambiano
   useEffect(() => {
-    setEntities((prevEntities: Entity[]) => // Tipizza esplicitamente prevEntities
-      prevEntities.map((entity: Entity) => { // Tipizza esplicitamente entity
+    setEntities((prevEntities: Entity[]) => 
+      prevEntities.map((entity: Entity) => { 
         if (entity.type === 'Location' && entity.name === locationId) {
           return {
             ...entity,
             details: {
-              ...(entity.details || {}), // Assicura che entity.details esista prima dello spread
-              placedItems: placedObjects, // Nota: considera se questo dovrebbe essere placedObjects per coerenza
+              ...(entity.details || {}), 
+              placedItems: placedObjects, // Modificato da placedItems per coerenza
               placedCharacters: placedCharacters,
             }
           } as LocationEntity;
@@ -47,27 +47,47 @@ export const PlacementEditor: React.FC<PlacementEditorProps> = ({
         return entity;
       })
     );
-  }, [placedObjects, placedCharacters, locationId, setEntities]); // Rimosso 'entities' dalle dipendenze
+  }, [placedObjects, placedCharacters, locationId, setEntities]);
 
 
   const handleMapClick = (event: React.MouseEvent<HTMLDivElement>) => {
     if (!selectedEntityIdToPlace || !selectedEntityTypeToPlace || !imageContainerRef.current) return;
 
     const rect = imageContainerRef.current.getBoundingClientRect();
-    // Calcola le coordinate relative all'immagine (percentuali)
     const x = ((event.clientX - rect.left) / rect.width) * 100;
     const y = ((event.clientY - rect.top) / rect.height) * 100;
 
-    const newPlacedEntity: PlacedEntity = { entityId: selectedEntityIdToPlace, position: { x, y}, interactionSpot: { x, y } };
+    const newPosition = { x, y };
 
     if (selectedEntityTypeToPlace === 'Item') {
-      setPlacedObjects(prev => [...prev, newPlacedEntity]);
+      setPlacedObjects(prev => {
+        const existingIndex = prev.findIndex(p => p.entityId === selectedEntityIdToPlace);
+        if (existingIndex !== -1) {
+          // Aggiorna la posizione dell'oggetto esistente
+          return prev.map((p, index) => 
+            index === existingIndex ? { ...p, position: newPosition, interactionSpot: newPosition } : p
+          );
+        } else {
+          // Aggiungi il nuovo oggetto
+          const newPlacedEntity: PlacedEntity = { entityId: selectedEntityIdToPlace, position: newPosition, interactionSpot: newPosition };
+          return [...prev, newPlacedEntity];
+        }
+      });
     } else if (selectedEntityTypeToPlace === 'Character') {
-      setPlacedCharacters(prev => [...prev, newPlacedEntity]);
+      setPlacedCharacters(prev => {
+        const existingIndex = prev.findIndex(p => p.entityId === selectedEntityIdToPlace);
+        if (existingIndex !== -1) {
+          // Aggiorna la posizione del personaggio esistente
+          return prev.map((p, index) => 
+            index === existingIndex ? { ...p, position: newPosition, interactionSpot: newPosition } : p
+          );
+        } else {
+          // Aggiungi il nuovo personaggio
+          const newPlacedEntity: PlacedEntity = { entityId: selectedEntityIdToPlace, position: newPosition, interactionSpot: newPosition };
+          return [...prev, newPlacedEntity];
+        }
+      });
     }
-    // Deseleziona per evitare piazzamenti multipli accidentali
-    // setSelectedEntityIdToPlace(null);
-    // setSelectedEntityTypeToPlace(null);
   };
 
   const getEntityNameById = (id: string, type: 'Item' | 'Character'): string => {
@@ -78,9 +98,10 @@ export const PlacementEditor: React.FC<PlacementEditorProps> = ({
 
   const handleRemovePlacedEntity = (idToRemove: string, type: 'Item' | 'Character') => {
     if (type === 'Item') {
-        setPlacedObjects(prev => prev.filter(p => p.entityId !== idToRemove || (p.entityId === idToRemove && !prev.find(item => item.entityId === idToRemove && item === p)))); // Rimuove solo la prima istanza trovata
+        // Con il posizionamento unico, possiamo semplificare la rimozione
+        setPlacedObjects(prev => prev.filter(p => p.entityId !== idToRemove));
     } else {
-        setPlacedCharacters(prev => prev.filter(p => p.entityId !== idToRemove || (p.entityId === idToRemove && !prev.find(item => item.entityId === idToRemove && item === p))));
+        setPlacedCharacters(prev => prev.filter(p => p.entityId !== idToRemove));
     }
   };
 
@@ -144,11 +165,11 @@ export const PlacementEditor: React.FC<PlacementEditorProps> = ({
           const imgSrc = itemEntity?.details?.inventoryImageData || itemEntity?.details?.imageData || 'https://via.placeholder.com/30?text=I'; // Fallback
           return (
             <div
-              key={`obj-${obj.entityId}-${index}`}
+              key={`obj-${obj.entityId}-${index}`} // L'index non è più strettamente necessario per la chiave se entityId è unico, ma lo teniamo per ora
               title={`${getEntityNameById(obj.entityId, 'Item')} (Item)`}
-              className="absolute w-8 h-8 bg-blue-500/70 border border-blue-700 rounded flex items-center justify-center text-white text-xs cursor-pointer"
+              className="absolute w-8 h-8 flex items-center justify-center text-xs cursor-pointer" // Rimosso bg-blue-500/70 border border-blue-700 rounded
               style={{ left: `${obj.position.x}%`, top: `${obj.position.y}%`, transform: 'translate(-50%, -50%)' }}
-              onClick={(e) => { e.stopPropagation(); handleRemovePlacedEntity(obj.entityId, 'Item'); }} // Clicca per rimuovere (esempio)
+              onClick={(e) => { e.stopPropagation(); handleRemovePlacedEntity(obj.entityId, 'Item'); }}
             >
               {imgSrc && <img src={imgSrc} alt={obj.entityId} className="max-w-full max-h-full object-contain" />}
               {!imgSrc && obj.entityId.substring(0,1)}
@@ -157,18 +178,19 @@ export const PlacementEditor: React.FC<PlacementEditorProps> = ({
         })}
         {/* Visualizza Personaggi Piazzati */}
         {placedCharacters.map((char, index) => {
-          // Potresti voler usare un'immagine specifica per i personaggi
           const charEntity = allCharacters.find(c => c.name === char.entityId);
-          // const imgSrc = charEntity?.details?.mapSprite || 'https://via.placeholder.com/30?text=C'; // Esempio
+          // const imgSrc = charEntity?.details?.mapSprite || 'https://via.placeholder.com/30?text=C'; 
           return (
             <div
-              key={`char-${char.entityId}-${index}`}
+              key={`char-${char.entityId}-${index}`} // L'index non è più strettamente necessario
               title={`${getEntityNameById(char.entityId, 'Character')} (Character)`}
-              className="absolute w-8 h-8 bg-green-500/70 border border-green-700 rounded-full flex items-center justify-center text-white text-xs cursor-pointer"
+              className="absolute w-8 h-8 flex items-center justify-center text-xs cursor-pointer" // Rimosso bg-green-500/70 border border-green-700 rounded-full
               style={{ left: `${char.position.x}%`, top: `${char.position.y}%`, transform: 'translate(-50%, -50%)' }}
-              onClick={(e) => { e.stopPropagation(); handleRemovePlacedEntity(char.entityId, 'Character'); }} // Clicca per rimuovere (esempio)
+              onClick={(e) => { e.stopPropagation(); handleRemovePlacedEntity(char.entityId, 'Character'); }}
             >
-              {char.entityId.substring(0,1)}
+              {/* Se hai un'immagine per il personaggio, visualizzala qui */}
+              {/* Esempio: charEntity?.details?.mapSprite ? <img src={charEntity.details.mapSprite} ... /> : char.entityId.substring(0,1) */}
+              {char.entityId.substring(0,1)} 
             </div>
           );
         })}
