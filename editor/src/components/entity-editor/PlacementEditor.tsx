@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, Dispatch, SetStateAction } from 'react'; // Aggiungi Dispatch e SetStateAction
-import { Entity, ItemEntity, CharacterEntity, LocationEntity, PlacedEntity } from '../flow-diagram/types'; // Assicurati che PlacedEntity sia definito in types.ts
+import { Entity, ItemEntity, CharacterEntity, LocationEntity, PlacedEntity } from '../flow-diagram/types/index'; // Assicurati che PlacedEntity sia definito in types.ts
 
 interface PlacementEditorProps {
   locationId: string;

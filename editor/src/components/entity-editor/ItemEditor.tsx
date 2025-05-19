@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'; // Added useRef, useCallback
 import { useDiagramContext } from '../flow-diagram/contexts/DiagramContext';
-import { Entity, ItemEntity } from '../flow-diagram/types'; // Aggiunto ItemEntity
+import { Entity, ItemEntity } from '../flow-diagram/types/index'; // Aggiunto ItemEntity
 
 // TODO: Definire un'interfaccia basata sulla struct model.Item di Go
 interface ItemData {

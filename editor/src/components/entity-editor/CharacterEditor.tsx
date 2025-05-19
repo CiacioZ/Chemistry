@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'; // Aggiunto useRef
 import { useDiagramContext } from '../flow-diagram/contexts/DiagramContext';
-import { Entity, CharacterEntity } from '../flow-diagram/types'; // Manteniamo Entity, useremo un cast o un tipo più specifico se necessario
+import { Entity, CharacterEntity } from '../flow-diagram/types/index'; // Manteniamo Entity, useremo un cast o un tipo più specifico se necessario
 
 // Interfaccia per il formData, che include l'ID e il nome (che sono a livello radice dell'entità)
 // più i dettagli specifici.

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback, Dispatch, SetStateAction } from 'react';
-import { Polygon, Point, Entity, LocationEntity } from '../flow-diagram/types';
+import { Polygon, Point, Entity, LocationEntity } from '../flow-diagram/types/index';
 
 
 

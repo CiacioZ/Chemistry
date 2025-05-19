@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, Dispatch, SetStateAction } from 'react'; // Added useMemo
 import { useDiagramContext } from '../flow-diagram/contexts/DiagramContext';
-import { Entity, LocationEntity, ItemEntity, CharacterEntity } from '../flow-diagram/types'; // Importa ItemEntity e CharacterEntity
+import { Entity, LocationEntity, ItemEntity, CharacterEntity } from '../flow-diagram/types/index'; // Importa ItemEntity e CharacterEntity
 import { PolygonEditor } from './PolygonEditor';
 import { PlacementEditor } from './PlacementEditor'; // Assicurati che questo import sia corretto
 
