@@ -1,92 +1,92 @@
-# Progetto Chemistry
+# Chemistry Project
 
-Questo repository contiene il progetto "Chemistry", che include un editor di scenari e potenzialmente altri componenti backend.
+This repository contains the "Chemistry" project, which includes a scenario editor and potentially other backend components.
 
-## Struttura del Progetto
+## Project Structure
 
-Il progetto è organizzato come segue:
+The project is organized as follows:
 
--   `/editor`: Contiene l'applicazione frontend sviluppata in Next.js, utilizzata per l'editing visuale di scenari, location, item, personaggi e dialoghi.
--   `/engine`: Contiene l'engine di gioco e i servizi backend, sviluppati in Go.
--   Altri file e cartelle di supporto al progetto principale.
+-   `/editor`: Contains the frontend application developed in Next.js, used for visual editing of scenarios, locations, items, characters, and dialogues.
+-   `/engine`: Contains the game engine and backend services, developed in Go.
+-   Other files and folders supporting the main project.
 
-## Componenti Principali
+## Main Components
 
-### 1. Editor di Scenari (Frontend - Next.js)
+### 1. Scenario Editor (Frontend - Next.js)
 
-L'editor è un'applicazione web che permette di:
--   Creare e gestire entità come Location, Item, Personaggi.
--   Definire le proprietà e i dettagli di ciascuna entità.
--   Visualizzare e modificare un diagramma di flusso che rappresenta le interazioni e la logica del gioco/scenario.
--   Posizionare oggetti e personaggi all'interno delle location.
--   Definire aree poligonali (walkable areas, interaction spots) sulle immagini delle location.
+The editor is a web application that allows you to:
+-   Create and manage entities such as Locations, Items, Characters.
+-   Define the properties and details of each entity.
+-   View and modify a flowchart representing game/scenario interactions and logic.
+-   Place objects and characters within locations.
+-   Define polygonal areas (walkable areas, interaction spots) on location images.
 
-### 2. Engine di Gioco e Backend (Servizi Applicativi - Go)
+### 2. Game Engine and Backend (Application Services - Go)
 
-L'engine di gioco, situato nella cartella `/engine`, è responsabile di:
--   Gestire la logica di business del gioco.
--   Eseguire lo script di gioco e le interazioni.
--   Salvare e recuperare i dati del progetto (scenari, entità, ecc.).
--   Fornire API per l'editor frontend (se applicabile) o gestire direttamente lo stato del gioco.
+The game engine, located in the `/engine` folder, is responsible for:
+-   Managing the game's business logic.
+-   Executing the game script and interactions.
+-   Saving and retrieving project data (scenarios, entities, etc.).
+-   Providing APIs for the frontend editor (if applicable) or directly managing the game state.
 
-## Prerequisiti
+## Prerequisites
 
-Prima di iniziare, assicurati di avere installato:
+Before you begin, ensure you have installed:
 
--   **Node.js** (per l'editor Next.js): Versione 18.x o successiva raccomandata. Puoi scaricarlo da [nodejs.org](https://nodejs.org/).
--   **Go** (per il backend, se applicabile): Versione 1.x. Puoi scaricarlo da [golang.org](https://go.dev/dl/).
--   **npm, yarn, pnpm, o bun** (per la gestione dei pacchetti dell'editor).
+-   **Node.js** (for the Next.js editor): Version 18.x or later recommended. You can download it from [nodejs.org](https://nodejs.org/).
+-   **Go** (for the backend, if applicable): Version 1.x. You can download it from [golang.org](https://go.dev/dl/).
+-   **npm, yarn, pnpm, or bun** (for managing editor packages).
 
-## Come Avviare il Progetto
+## How to Start the Project
 
-### Avviare l'Editor (Frontend Next.js)
+### Starting the Editor (Frontend Next.js)
 
-1.  Naviga nella cartella dell'editor:
+1.  Navigate to the editor folder:
     ```bash
     cd editor
     ```
-2.  Installa le dipendenze (esegui solo una volta):
+2.  Install dependencies (run only once):
     ```bash
     npm install
-    # o
+    # or
     yarn install
-    # o
+    # or
     pnpm install
-    # o
+    # or
     bun install
     ```
-3.  Avvia il server di sviluppo dell'editor:
+3.  Start the editor's development server:
     ```bash
     npm run dev
-    # o
+    # or
     yarn dev
-    # o
+    # or
     pnpm dev
-    # o
+    # or
     bun dev
     ```
-4.  Apri [http://localhost:3000](http://localhost:3000) nel tuo browser per vedere l'editor.
+4.  Open [http://localhost:3000](http://localhost:3000) in your browser to see the editor.
 
-### Avviare l'Engine di Gioco (Backend Go)
+### Starting the Game Engine (Backend Go)
 
-1.  Naviga nella cartella dell'engine:
+1.  Navigate to the engine folder:
     ```bash
     cd engine
     ```
-2.  Esegui il comando per avviare l'applicazione Go (questo può variare a seconda di come è strutturato il backend, ad esempio per un'applicazione desktop o web):
+2.  Run the command to start the Go application (this may vary depending on how the backend is structured, e.g., for a desktop or web application):
     ```bash
-    # Esempio per un'applicazione desktop (potrebbe essere in engine/cmd/desktop)
+    # Example for a desktop application (could be in engine/cmd/desktop)
     go run cmd/desktop/main.go
-    # o per un servizio web (potrebbe essere in engine/cmd/web)
+    # or for a web service (could be in engine/cmd/web)
     # go run cmd/web/web.go
-    # o un altro comando specifico del tuo progetto backend
+    # or another command specific to your backend project
     ```
-    Assicurati di consultare la documentazione specifica del backend o la struttura dei comandi all'interno della cartella `/engine/cmd/` per i comandi esatti.
+    Be sure to consult the specific backend documentation or the command structure within the `/engine/cmd/` folder for the exact commands.
 
-## Contribuire
+## Contributing
 
-Informazioni su come contribuire al progetto (da definire).
+Information on how to contribute to the project (to be defined).
 
-## Licenza
+## License
 
-Dettagli sulla licenza del progetto (da definire).
+Details on the project license (to be defined).
