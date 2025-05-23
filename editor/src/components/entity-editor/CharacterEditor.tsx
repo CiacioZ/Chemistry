@@ -1,19 +1,19 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'; // Aggiunto useRef
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useDiagramContext } from '../flow-diagram/contexts/DiagramContext';
-import { Entity, CharacterEntity } from '../flow-diagram/types/index'; // Manteniamo Entity, useremo un cast o un tipo più specifico se necessario
+import { Entity, CharacterEntity, Animation, AnimationFrame } from '../flow-diagram/types/index';
 
-// Interfaccia per il formData, che include l'ID e il nome (che sono a livello radice dell'entità)
-// più i dettagli specifici.
+// Interfaccia per il formData, aggiornata per includere le animazioni
 interface CharacterData {
-  id: string; // Corrisponde a Entity.name
-  name: string; // Corrisponde a Entity.name
+  id: string;
+  name: string;
   description: string;
+  animations: Animation[];
 }
 
 export const CharacterEditor: React.FC = () => {
-  const { entities, setEntities } = useDiagramContext(); // Aggiunto setEntities
+  const { entities, setEntities } = useDiagramContext();
 
   // Filtra le entità per ottenere solo i Character
   const graphCharacters = useMemo(() => {
@@ -26,23 +26,26 @@ export const CharacterEditor: React.FC = () => {
   // Ref per tracciare se il formData corrente è il caricamento iniziale per il character selezionato
   const isInitialDataLoad = useRef(false);
 
+  const [selectedAnimationIndex, setSelectedAnimationIndex] = useState<number | null>(null);
+  const [selectedFrameIndex, setSelectedFrameIndex] = useState<number | null>(null);
+
   useEffect(() => {
     if (selectedCharacterId) {
       const selectedEntity = graphCharacters.find(char => char.name === selectedCharacterId);
       if (selectedEntity) {
-        isInitialDataLoad.current = true; // Segna che stiamo caricando i dati iniziali
+        isInitialDataLoad.current = true;
         setFormData({
           id: selectedEntity.name,
           name: selectedEntity.name,
           description: selectedEntity.details?.description || '',
-          // Inizializzare altri campi da selectedEntity.details se presenti
+          animations: selectedEntity.details?.animations || [],
         });
       } else {
-        setSelectedCharacterId(null); // Character non trovato, deseleziona
+        setSelectedCharacterId(null);
         setFormData({});
       }
     } else {
-      setFormData({}); // Nessun character selezionato
+      setFormData({});
     }
   }, [selectedCharacterId, graphCharacters]);
 
@@ -79,11 +82,11 @@ export const CharacterEditor: React.FC = () => {
         const currentEntity = entity as CharacterEntity; // Cast a CharacterEntity
         return {
           ...currentEntity,
-          name: formData.name || currentEntity.name, // Aggiorna il nome a livello radice
+          name: formData.name || currentEntity.name,
           details: {
             ...(currentEntity.details || {}),
             description: formData.description || '',
-            // Salva altri campi specifici del character da formData qui
+            animations: formData.animations || [], // Aggiungi questa riga
           },
         };
       }
@@ -132,6 +135,106 @@ export const CharacterEditor: React.FC = () => {
       // Potresti voler mostrare una notifica di successo qui
     }
   }, [selectedCharacterId, setEntities, entities]); 
+
+  // Funzioni per gestire le animazioni
+  const handleAddAnimation = () => {
+    const newAnimation: Animation = {
+      name: `Animation ${(formData.animations?.length || 0) + 1}`,
+      frames: [],
+      loop: true
+    };
+    
+    setFormData(prev => ({
+      ...prev,
+      animations: [...(prev.animations || []), newAnimation]
+    }));
+  };
+
+  const handleDeleteAnimation = (index: number) => {
+    if (window.confirm('Sei sicuro di voler cancellare questa animazione?')) {
+      setFormData(prev => ({
+        ...prev,
+        animations: prev.animations?.filter((_, i) => i !== index) || []
+      }));
+      
+      if (selectedAnimationIndex === index) {
+        setSelectedAnimationIndex(null);
+        setSelectedFrameIndex(null);
+      }
+    }
+  };
+
+  const handleAnimationNameChange = (index: number, newName: string) => {
+    setFormData(prev => ({
+      ...prev,
+      animations: prev.animations?.map((anim, i) => 
+        i === index ? { ...anim, name: newName } : anim
+      ) || []
+    }));
+  };
+
+  const handleAddFrame = (animationIndex: number) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const imageData = event.target?.result as string;
+          const newFrame: AnimationFrame = {
+            imageData,
+            duration: 100 // Default 100ms
+          };
+          
+          setFormData(prev => ({
+            ...prev,
+            animations: prev.animations?.map((anim, i) => 
+              i === animationIndex 
+                ? { ...anim, frames: [...anim.frames, newFrame] }
+                : anim
+            ) || []
+          }));
+        };
+        reader.readAsDataURL(file);
+      }
+    };
+    input.click();
+  };
+
+  const handleDeleteFrame = (animationIndex: number, frameIndex: number) => {
+    if (window.confirm('Sei sicuro di voler cancellare questo frame?')) {
+      setFormData(prev => ({
+        ...prev,
+        animations: prev.animations?.map((anim, i) => 
+          i === animationIndex 
+            ? { ...anim, frames: anim.frames.filter((_, fi) => fi !== frameIndex) }
+            : anim
+        ) || []
+      }));
+      
+      if (selectedFrameIndex === frameIndex) {
+        setSelectedFrameIndex(null);
+      }
+    }
+  };
+
+  const handleFrameDurationChange = (animationIndex: number, frameIndex: number, duration: number) => {
+    setFormData(prev => ({
+      ...prev,
+      animations: prev.animations?.map((anim, i) => 
+        i === animationIndex 
+          ? { 
+              ...anim, 
+              frames: anim.frames.map((frame, fi) => 
+                fi === frameIndex ? { ...frame, duration } : frame
+              )
+            }
+          : anim
+      ) || []
+    }));
+  };
 
   return (
     <div className="flex h-full space-x-4">
@@ -216,6 +319,88 @@ export const CharacterEditor: React.FC = () => {
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               />
+            </div>
+            
+            {/* Sezione Animazioni */}
+            <div className="mb-6">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">Animazioni</h3>
+                <button
+                  type="button"
+                  onClick={handleAddAnimation}
+                  className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
+                >
+                  + Nuova Animazione
+                </button>
+              </div>
+              
+              {formData.animations?.map((animation, animIndex) => (
+                <div key={animIndex} className="border rounded p-3 mb-3 bg-gray-50 dark:bg-gray-700">
+                  <div className="flex justify-between items-center mb-2">
+                    <input
+                      type="text"
+                      value={animation.name}
+                      onChange={(e) => handleAnimationNameChange(animIndex, e.target.value)}
+                      className="font-medium bg-transparent border-b border-gray-300 dark:border-gray-600 focus:outline-none focus:border-blue-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteAnimation(animIndex)}
+                      className="text-red-500 hover:text-red-700 text-sm"
+                    >
+                      Elimina
+                    </button>
+                  </div>
+                  
+                  <div className="mb-2">
+                    <button
+                      type="button"
+                      onClick={() => handleAddFrame(animIndex)}
+                      className="px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-xs"
+                    >
+                      + Aggiungi Frame
+                    </button>
+                  </div>
+                  
+                  <div className="grid grid-cols-4 gap-2">
+                    {animation.frames.map((frame, frameIndex) => (
+                      <div key={frameIndex} className="relative border rounded p-2 bg-white dark:bg-gray-800">
+                        <img
+                          src={frame.imageData}
+                          alt={`Frame ${frameIndex + 1}`}
+                          className="w-full h-16 object-cover rounded mb-1"
+                        />
+                        <div className="flex items-center justify-between text-xs">
+                          <input
+                            type="number"
+                            value={frame.duration || 100}
+                            onChange={(e) => handleFrameDurationChange(animIndex, frameIndex, parseInt(e.target.value))}
+                            className="w-12 px-1 py-0.5 border rounded text-xs"
+                            min="1"
+                          />
+                          <span className="text-gray-500">ms</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteFrame(animIndex, frameIndex)}
+                          className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs hover:bg-red-600"
+                          style={{ transform: 'translate(25%, -25%)' }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {animation.frames.length === 0 && (
+                    <p className="text-gray-500 text-sm italic">Nessun frame aggiunto</p>
+                  )}
+                </div>
+              ))}
+              
+              {(!formData.animations || formData.animations.length === 0) && (
+                <p className="text-gray-500 text-sm italic">Nessuna animazione definita</p>
+              )}
             </div>
             {/* TODO: Aggiungere altri campi specifici per Character */}
             <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">

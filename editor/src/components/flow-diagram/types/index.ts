@@ -79,11 +79,25 @@ export interface Entity {
   details?: AllEntityDetails; // Modifica: Aggiunto campo details opzionale
 }
 
+// Interfaccia per un singolo frame di animazione
+export interface AnimationFrame {
+  imageData: string; // Base64 o URL dell'immagine del frame
+  duration?: number; // Durata del frame in millisecondi (opzionale)
+}
+
+// Interfaccia per un'animazione completa
+export interface Animation {
+  name: string;
+  frames: AnimationFrame[];
+  loop?: boolean; // Se l'animazione deve essere in loop
+}
+
+// E aggiorna CharacterDetails:
 export interface CharacterDetails {
   description?: string;
-  inventory?: string[]; // Array di ID di Item
-  dialogueTree?: string; // ID o riferimento all'albero di dialogo
-  animations?: { [id: string] : string ; }
+  inventory?: string[];
+  dialogueTree?: string;
+  animations?: Animation[]; // Cambiato da { [id: string] : string ; }
   imageData?: string;
 }
 
