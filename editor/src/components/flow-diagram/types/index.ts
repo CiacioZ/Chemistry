@@ -39,6 +39,7 @@ export interface Position {
     to: string;      // Su chi/cosa viene eseguita l'azione
     with: string;    // Con quale strumento/mezzo
     where: string;   // Dove viene eseguita l'azione
+    script?: string;  // Script da eseguire
   }
   
   // Interfaccia specifica per i nodi di tipo State

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, Dispatch, SetStateAction } from 'react';
 import { Node, Entity, EntityType, VERBS } from '../types/index';
+import type { ActionNode, StateNode } from '../types/index';
 import {
   Dialog,
   DialogContent,
@@ -169,7 +170,7 @@ import {
                <div>
                  <label className="text-sm font-medium">From</label>
                  <EntityDropdown
-                   value={tempValues.from || 'MAIN_CHARACTER'}
+                   value={(tempValues as Partial<ActionNode>).from || 'MAIN_CHARACTER'}
                    onChange={(value) => handleInputChange('from', value)}
                    entityTypes={['Character']}
                    entities={entities}
@@ -180,7 +181,7 @@ import {
                <div>
                  <label className="text-sm font-medium">Verb</label>
                  <select
-                   value={tempValues.verb || ''}
+                   value={(tempValues as Partial<ActionNode>).verb || ''}
                    onChange={e => {
                      handleInputChange('verb', e.target.value);
                      // Reset with quando il verbo non è più "Interact with"
@@ -199,19 +200,19 @@ import {
                <div>
                  <label className="text-sm font-medium">To</label>
                  <EntityDropdown
-                   value={tempValues.to || ''}
+                   value={(tempValues as Partial<ActionNode>).to || ''}
                    onChange={(value) => handleInputChange('to', value)}
-                   entityTypes={getToEntityTypes(tempValues.verb || '')}
+                   entityTypes={getToEntityTypes((tempValues as Partial<ActionNode>).verb || '')}
                    entities={entities}
                    onAddEntity={handleAddEntity}
                    fieldName="to"
                  />
                </div>
-               {tempValues.verb === 'Interact with' && (
+               {(tempValues as Partial<ActionNode>).verb === 'Interact with' && (
                  <div>
                    <label className="text-sm font-medium">With</label>
                    <EntityDropdown
-                     value={tempValues.with || ''}
+                     value={(tempValues as Partial<ActionNode>).with || ''}
                      onChange={(value) => handleInputChange('with', value)}
                      entityTypes={['Item']}
                      entities={entities}
@@ -223,12 +224,22 @@ import {
                <div>
                  <label className="text-sm font-medium">Where</label>
                  <EntityDropdown
-                   value={tempValues.where || ''}
+                   value={(tempValues as Partial<ActionNode>).where || ''}
                    onChange={(value) => handleInputChange('where', value)}
                    entityTypes={['Location']}
                    entities={entities}
                    onAddEntity={handleAddEntity}
                    fieldName="where"
+                 />
+               </div>
+               <div>
+                 <label className="text-sm font-medium">Script</label>
+                 <textarea
+                   value={(tempValues as Partial<ActionNode>).script || ''}
+                   onChange={e => handleInputChange('script', e.target.value)}
+                   className="w-full p-2 mt-1 border rounded"
+                   rows={3}
+                   placeholder="Enter script here..."
                  />
                </div>
              </div>
@@ -237,8 +248,8 @@ import {
                <label className="text-sm font-medium">Description</label>
                <input
                  type="text"
-                 value={tempValues.description || ''}
-                 onChange={e => handleInputChange('description', e.target.value)}
+                 value={(tempValues as Partial<StateNode>).description || ''}
+                 onChange={e => handleInputChange('description', (e.target.value as string))}
                  className="w-full p-2 mt-1 border rounded"
                />
              </div>
