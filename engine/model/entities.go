@@ -27,6 +27,7 @@ type Action struct {
 	ActionTo      string
 	With          string
 	Where         string
+	Script        string
 	ExecuteBefore func()
 	ExecuteAction func()
 	ExecuteAfter  func()
@@ -226,13 +227,14 @@ func NewItem(name string, useWith bool, pickable bool, sprite []byte) Item {
 	return data
 }
 
-func NewAction(from string, verb Verb, to string, with string, where string, execBefore func(), execAction func(), execAfter func()) Action {
+func NewAction(from string, verb Verb, to string, with string, where string, script string, execBefore func(), execAction func(), execAfter func()) Action {
 	data := Action{
 		ActionFrom:    from,
 		Verb:          verb,
 		ActionTo:      to,
 		With:          with,
 		Where:         where,
+		Script:        script,
 		ExecuteBefore: execBefore,
 		ExecuteAction: execAction,
 		ExecuteAfter:  execAfter,

@@ -80,7 +80,7 @@ func (g *Game) updateTextToDrawTimer() {
 // Nuova funzione per gestire l'input
 func (g *Game) handleInput() error {
 	cursorX, cursorY := g.state.camera.ScreenToWorld(ebiten.CursorPosition())
-	g.state.cursorOnItem = g.itemAt(int(cursorX), int(cursorY))
+	g.state.cursorOnItem = g.ItemAt(int(cursorX), int(cursorY))
 
 	switch {
 	case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft):
@@ -95,35 +95,65 @@ func (g *Game) handleInput() error {
 
 // Nuova funzione per gestire il click sinistro (da popolare con la logica esistente)
 func (g *Game) handleLeftClick() {
-	// TODO: Sposta qui la logica da 'case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft):'
-	//       dentro la funzione Update originale.
-	//       Considera di suddividere ulteriormente in base allo stato (IDLE, WAITING_ACTION, ecc.)
-	//       se la logica rimane complessa.
 	switch g.GetCurrentState() {
 	case model.IDLE:
-		// ... logica per IDLE ...
+
 		if g.state.cursorOnItem != "" {
-			// ...
-		} else {
-			switch g.GetCurrentVerb() {
-			case model.MOVE_TO:
-				worldX, worldY := g.state.camera.ScreenToWorld(ebiten.CursorPosition())
-				g.moveTo(int(worldX), int(worldY))
-			default:
-				g.SetCurrentVerb(model.MOVE_TO)
+
+			selectedItemId := g.state.cursorOnItem
+			item := g.GetItem(selectedItemId)
+			if item.UseWith && g.GetCurrentVerb() == model.USE {
+				g.state.mainItemID = selectedItemId
+				g.SetCurrentState(model.WAITING_ACTION)
+			} else {
+				trigger := composeTrigger(g.state.currentCharacter.ID, g.state.currentVerb, g.state.cursorOnItem, model.NOTHING, g.state.currentLocation.ID)
+				location := g.GetCurrentLocation()
+				g.MoveTo(location.Items[item.ID].InteractionPoint.X, location.Items[item.ID].InteractionPoint.Y)
+
+				g.state.watingActions = append(g.state.watingActions, trigger)
+
 			}
 		}
+
+		switch g.GetCurrentVerb() {
+		case model.MOVE_TO:
+			worldX, worldY := g.state.camera.ScreenToWorld(ebiten.CursorPosition())
+
+			g.MoveTo(int(worldX), int(worldY))
+		default:
+			g.SetCurrentVerb(model.MOVE_TO)
+		}
 	case model.WAITING_ACTION:
-		// ... logica per WAITING_ACTION ...
+
+		if g.state.cursorOnItem != "" {
+
+			selectedItemId := g.state.cursorOnItem
+			g.state.secondItemID = selectedItemId
+
+			trigger := composeTrigger(g.state.currentCharacter.ID, g.state.currentVerb, g.state.cursorOnItem, selectedItemId, g.state.currentLocation.ID)
+			g.ExecuteAction(trigger)
+
+			g.state.mainItemID = ""
+			g.state.secondItemID = ""
+			g.SetCurrentState(model.IDLE)
+			g.SetCurrentVerb(model.MOVE_TO)
+		}
+
 	case model.EXECUTING_ACTION:
-		// ... logica per EXECUTING_ACTION ...
+
+		switch g.GetCurrentVerb() {
+		case model.MOVE_TO:
+			worldX, worldY := g.state.camera.ScreenToWorld(ebiten.CursorPosition())
+
+			g.MoveTo(int(worldX), int(worldY))
+		}
+
 	}
 }
 
 // Nuova funzione per gestire il click destro (da popolare con la logica esistente)
 func (g *Game) handleRightClick() {
-	// TODO: Sposta qui la logica da 'case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonRight):'
-	//       dentro la funzione Update originale.
+
 	switch g.GetCurrentVerb() {
 	case model.MOVE_TO:
 		g.SetCurrentVerb(model.LOOK_AT)
@@ -142,9 +172,7 @@ func (g *Game) handleRightClick() {
 
 // Nuova funzione per aggiornare lo stato EXECUTING_ACTION
 func (g *Game) updateExecutingActionState() {
-	// TODO: Sposta qui la logica da 'case model.EXECUTING_ACTION:'
-	//       dentro la funzione Update originale.
-	//       Considera di estrarre la gestione di MOVE_TO in un'altra funzione.
+
 	if len(g.state.watingActions) == 0 {
 		g.SetCurrentState(model.IDLE)
 		return
@@ -226,13 +254,13 @@ func (g *Game) updateMoveToAction() {
 			} else {
 				// Next action is different, stop moving animation
 				g.state.watingActions = g.state.watingActions[1:]
-				g.stopCharacterMovementAnimation() // Use a helper function
+				g.StopCharacterMovementAnimation() // Use a helper function
 				// State will be set by the next action's logic or go IDLE if none left
 			}
 		} else {
 			// No more actions, stop moving animation and go idle
 			g.state.watingActions = make([]string, 0)
-			g.stopCharacterMovementAnimation() // Use a helper function
+			g.StopCharacterMovementAnimation() // Use a helper function
 			g.SetCurrentState(model.IDLE)
 		}
 		return // Finished processing this segment
@@ -312,7 +340,7 @@ func (g *Game) updateMoveToAction() {
 }
 
 // Helper function to set idle animation based on current direction
-func (g *Game) stopCharacterMovementAnimation() {
+func (g *Game) StopCharacterMovementAnimation() {
 	switch g.GetCurrentCharacterDirection() {
 	case model.DOWN:
 		g.SetCurrentCharacterAnimationAtFrame(string(model.IDLE_FACE_DOWN), 0)
@@ -521,7 +549,7 @@ func (g *Game) drawCursor(screen *ebiten.Image) {
 
 }
 
-func (g *Game) itemAt(x int, y int) string {
+func (g *Game) ItemAt(x int, y int) string {
 	for id, location := range g.state.currentLocation.Items {
 
 		alphaImage := g.GetItem(id).Alpha
@@ -538,7 +566,7 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return screenWidth, screenHeight
 }
 
-func (g *Game) moveTo(x int, y int) {
+func (g *Game) MoveTo(x int, y int) {
 	destination := image.Point{
 		X: x,
 		Y: y,

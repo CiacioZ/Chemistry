@@ -7,6 +7,8 @@ require (
 	github.com/hajimehoshi/ebiten/v2 v2.8.6
 )
 
+require github.com/yuin/gopher-lua v1.1.1 // indirect
+
 require (
 	github.com/ebitengine/gomobile v0.0.0-20240911145611-4856209ac325 // indirect
 	github.com/ebitengine/hideconsole v1.0.0 // indirect

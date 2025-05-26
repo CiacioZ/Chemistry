@@ -78,7 +78,7 @@ type GameData struct {
 	Items     map[string]model.Item      `json:"items"`
 	Character map[string]model.Character `json:"character"`
 	Triggers  map[string]model.Action    `json:"triggers"`
-	Scripts   map[string]func()
+	Scripts   map[string]string
 	Fonts     map[string][]byte
 	Cursors   map[string][]byte
 }
@@ -227,12 +227,27 @@ func (g *Game) GetItem(id string) model.Item {
 	return g.data.Items[id]
 }
 
-func (g *Game) AddScript(name string, script func()) {
-	g.data.Scripts[name] = script
+func (g *Game) AddScript(name string, scriptText string) {
+	if g.data.Scripts == nil {
+		g.data.Scripts = make(map[string]string)
+	}
+	g.data.Scripts[name] = scriptText
 }
 
 func (g *Game) ExecuteScript(name string) {
-	g.data.Scripts[name]()
+	scriptText, exists := g.data.Scripts[name]
+	if !exists {
+		log.Printf("Error: Lua script named '%s' not found.", name)
+		return
+	}
+
+	L := NewLuaState(g)
+	defer L.Close()
+
+	err := RunScript(L, scriptText)
+	if err != nil {
+		log.Printf("Error executing named Lua script '%s': %v", name, err)
+	}
 }
 
 func (g *Game) GetCurrentCharacterPosition() image.Point {
@@ -293,7 +308,7 @@ func initGameData() GameData {
 		Locations: make(map[string]model.Location),
 		Character: make(map[string]model.Character),
 		Triggers:  make(map[string]model.Action),
-		Scripts:   make(map[string]func()),
+		Scripts:   make(map[string]string),
 		Fonts:     make(map[string][]byte),
 		Cursors:   make(map[string][]byte),
 	}
@@ -377,59 +392,74 @@ func (g *Game) ExecuteAction(inputTrigger string) {
 	location := triggerParts[4]
 
 	actionToExecute := g.getActionToExecute(subject, verb, mainObject, secondObject, location)
-	actionToExecute.ExecuteBefore()
 
-	switch actionToExecute.Verb {
-	case model.GIVE_TO:
-		item := g.data.Items[mainObject]
-		character := g.data.Character[subject]
-		if character.Inventory[item.ID].Count == 1 {
-			delete(character.Inventory, item.ID)
-		} else {
-			slot := character.Inventory[item.ID]
-			slot.Count--
-			character.Inventory[item.ID] = slot
-		}
+	//if actionToExecute.ExecuteBefore != nil {
+	//	actionToExecute.ExecuteBefore()
+	//}
 
-		actionToExecute.ExecuteAction()
+	//if actionToExecute.Script != "" {
 
-	case model.TALK_TO:
-		actionToExecute.ExecuteAction()
+	log.Printf("Executing Lua script for action %s: %v", inputTrigger, actionToExecute.Script)
 
-	case model.PICK_UP:
-		item := g.data.Items[mainObject]
-		if item.Pickable {
-			characterData := g.data.Character[subject]
-			if slot, exists := characterData.Inventory[item.ID]; exists {
-				slot.Count++
-				characterData.Inventory[item.ID] = slot
-			} else {
-				characterData.Inventory[item.ID] = model.InventorySlot{
-					Count: 1,
-					Item:  item,
-				}
-			}
-			locationData := g.data.Locations[location]
-			delete(locationData.Items, item.ID)
-			actionToExecute.ExecuteAction()
-		} else {
-			fmt.Println("Non posso raccoglierlo")
-		}
+	L := NewLuaState(g)
+	defer L.Close()
 
-	case model.USE:
-		actionToExecute.ExecuteAction()
-
-	case model.MOVE_TO:
-		actionToExecute.ExecuteAction()
-
-	case model.LOOK_AT:
-		actionToExecute.ExecuteAction()
-
-	default:
-		fmt.Printf("Invalid verb '%s'", verb)
+	err := RunScript(L, actionToExecute.Script)
+	if err != nil {
+		log.Printf("Error executing Lua script for action %s: %v", inputTrigger, err)
 	}
+	/*
+			} else if actionToExecute.ExecuteAction != nil {
+			switch actionToExecute.Verb {
+			case model.GIVE_TO:
+				item := g.data.Items[mainObject]
+				character := g.data.Character[subject]
+				if character.Inventory[item.ID].Count == 1 {
+					delete(character.Inventory, item.ID)
+				} else {
+					slot := character.Inventory[item.ID]
+					slot.Count--
+					character.Inventory[item.ID] = slot
+				}
+				actionToExecute.ExecuteAction()
+			case model.TALK_TO:
+				actionToExecute.ExecuteAction()
+			case model.PICK_UP:
+				item := g.data.Items[mainObject]
+				if item.Pickable {
+					characterData := g.data.Character[subject]
+					if slot, exists := characterData.Inventory[item.ID]; exists {
+						slot.Count++
+						characterData.Inventory[item.ID] = slot
+					} else {
+						characterData.Inventory[item.ID] = model.InventorySlot{
+							Count: 1,
+							Item:  item,
+						}
+					}
+					locationData := g.data.Locations[location]
+					delete(locationData.Items, item.ID)
+					actionToExecute.ExecuteAction()
+				} else {
+					g.SaySomething("I can't pick that up.")
+				}
+			case model.USE:
+				actionToExecute.ExecuteAction()
+			case model.MOVE_TO:
+				actionToExecute.ExecuteAction()
+			case model.LOOK_AT:
+				actionToExecute.ExecuteAction()
+			default:
+				log.Printf("Invalid verb '%s' for non-scripted action", verb)
+			}
+		} else {
+			log.Printf("Action %s has neither a script nor an ExecuteAction function.", inputTrigger)
+		}
+	*/
 
-	actionToExecute.ExecuteAfter()
+	//if actionToExecute.ExecuteAfter != nil {
+	//	actionToExecute.ExecuteAfter()
+	//}
 }
 
 func (g *Game) getActionToExecute(subject string, verb model.Verb, mainObject string, secondObject string, location string) model.Action {
@@ -488,5 +518,5 @@ func (g *Game) getActionToExecute(subject string, verb model.Verb, mainObject st
 		}
 	}
 
-	return model.NewAction(subject, verb, mainObject, secondObject, location, model.DoNothing, model.DoNothing, model.DoNothing)
+	return model.NewAction(subject, verb, mainObject, secondObject, location, "", model.DoNothing, model.DoNothing, model.DoNothing)
 }

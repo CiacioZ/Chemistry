@@ -17,7 +17,7 @@ func init() {
 	data.InitGenericData(&game)
 	data.InitCustomData(&game)
 
-	game.ExecuteScript("intro")
+	//game.ExecuteScript("intro")
 }
 
 func main() {

@@ -149,33 +149,17 @@ func InitCustomData(game *logic.Game) {
 	game.AddLocation(location2)
 
 	//CUSTOM ACTIONS
-	lookAt1 := model.NewAction(mainChar.ID, model.LOOK_AT, itemNote.ID, model.NOTHING, model.SOMEWHERE, model.DoNothing, func() {
-		game.SaySomething("La nota dice: 'Usa la chiave sulla porta'")
-		game.SaySomething("mmh ci potevo anche arrivare da solo...")
-	}, model.DoNothing)
+	lookAt1 := model.NewAction(mainChar.ID, model.LOOK_AT, itemNote.ID, model.NOTHING, model.SOMEWHERE, "game:SaySomething(\"La nota dice: 'Usa la chiave sulla porta'\"); game:SaySomething(\"mmh ci potevo anche arrivare da solo...\")", model.DoNothing, model.DoNothing, model.DoNothing)
 	game.AddAction(lookAt1)
 
-	lookAt2 := model.NewAction(mainChar.ID, model.LOOK_AT, itemKey.ID, model.NOTHING, model.SOMEWHERE, model.DoNothing, func() {
-		game.SaySomething("Sembra la chiave di una porta..")
-	}, model.DoNothing)
+	lookAt2 := model.NewAction(mainChar.ID, model.LOOK_AT, itemKey.ID, model.NOTHING, model.SOMEWHERE, "game:SaySomething(\"Sembra la chiave di una porta..\")", model.DoNothing, model.DoNothing, model.DoNothing)
 	game.AddAction(lookAt2)
 
 	game.SetFlag("door_open", false)
-	moveTo1 := model.NewAction(mainChar.ID, model.MOVE_TO, itemDoorToLocation2.ID, model.NOTHING, model.SOMEWHERE, model.DoNothing, func() {
-		if !game.GetFlag("door_open") {
-			game.SaySomething("La porta e' chiusa")
-		}
-	}, model.DoNothing)
+	moveTo1 := model.NewAction(mainChar.ID, model.MOVE_TO, itemDoorToLocation2.ID, model.NOTHING, model.SOMEWHERE, "if not game:GetFlag(\"door_open\") then game:SaySomething(\"La porta e' chiusa\") end", model.DoNothing, model.DoNothing, model.DoNothing)
 	game.AddAction(moveTo1)
 
-	useKeyOnDoor1 := model.NewAction(mainChar.ID, model.USE, itemKey.ID, itemDoorToLocation2.ID, model.SOMEWHERE, model.DoNothing, func() {
-		if !game.GetFlag("door_open") {
-			game.SetFlag("door_open", true)
-			game.SaySomething("La porta si e' aperta!")
-		} else {
-			game.SaySomething("La porta e' gia' aperta")
-		}
-	}, model.DoNothing)
+	useKeyOnDoor1 := model.NewAction(mainChar.ID, model.USE, itemKey.ID, itemDoorToLocation2.ID, model.SOMEWHERE, "if not game:GetFlag(\"door_open\") then game:SetFlag(\"door_open\", true); game:SaySomething(\"La porta si e' aperta!\") else game:SaySomething(\"La porta e' gia' aperta\") end", model.DoNothing, model.DoNothing, model.DoNothing)
 	game.AddAction(useKeyOnDoor1)
 
 	intro := func() {
@@ -189,6 +173,7 @@ func InitCustomData(game *logic.Game) {
 		game.SetCurrentState(model.IDLE)
 		game.SetCurrentCursor("Cross")
 	}
-	game.AddScript("intro", intro)
+	// game.AddScript("intro", intro) // This was for the old system
+	intro() // Call the intro function directly now
 
 }
