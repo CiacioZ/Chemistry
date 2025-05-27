@@ -369,12 +369,22 @@ func (g *Game) updateWaitingActionState() {
 
 // Nuova funzione per aggiornare la posizione della camera
 func (g *Game) updateCameraPosition() {
-	// TODO: Sposta qui la logica di aggiornamento della camera.
-	if g.state.currentCharacterPosition.X >= screenWidth/2 && int(g.state.camera.Position[0]+screenWidth) < g.state.currentBackGround.Bounds().Dx() {
-		g.state.camera.Position[0] = float64(g.state.currentCharacterPosition.X - (screenWidth / 2))
+	targetCameraX := float64(g.state.currentCharacterPosition.X - (screenWidth / 2))
+
+	// Clamp camera position to background bounds
+	maxCameraX := float64(g.state.currentBackGround.Bounds().Dx() - screenWidth)
+	if targetCameraX < 0 {
+		targetCameraX = 0
+	} else if targetCameraX > maxCameraX {
+		targetCameraX = maxCameraX
 	}
 
-	// ... resto della logica della camera ...
+	g.state.camera.Position[0] = targetCameraX
+
+	// TODO: Implement vertical camera scrolling if needed
+	// if g.state.currentCharacterPosition.Y >= screenHeight/2 && int(g.state.camera.Position[1]+screenHeight) < g.state.currentBackGround.Bounds().Dy() {
+	// 	g.state.camera.Position[1] = float64(g.state.currentCharacterPosition.Y - (screenHeight / 2))
+	// }
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {

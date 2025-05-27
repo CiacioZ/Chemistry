@@ -393,12 +393,6 @@ func (g *Game) ExecuteAction(inputTrigger string) {
 
 	actionToExecute := g.getActionToExecute(subject, verb, mainObject, secondObject, location)
 
-	//if actionToExecute.ExecuteBefore != nil {
-	//	actionToExecute.ExecuteBefore()
-	//}
-
-	//if actionToExecute.Script != "" {
-
 	log.Printf("Executing Lua script for action %s: %v", inputTrigger, actionToExecute.Script)
 
 	L := NewLuaState(g)
@@ -408,58 +402,50 @@ func (g *Game) ExecuteAction(inputTrigger string) {
 	if err != nil {
 		log.Printf("Error executing Lua script for action %s: %v", inputTrigger, err)
 	}
-	/*
-			} else if actionToExecute.ExecuteAction != nil {
-			switch actionToExecute.Verb {
-			case model.GIVE_TO:
-				item := g.data.Items[mainObject]
-				character := g.data.Character[subject]
-				if character.Inventory[item.ID].Count == 1 {
-					delete(character.Inventory, item.ID)
-				} else {
-					slot := character.Inventory[item.ID]
-					slot.Count--
-					character.Inventory[item.ID] = slot
-				}
-				actionToExecute.ExecuteAction()
-			case model.TALK_TO:
-				actionToExecute.ExecuteAction()
-			case model.PICK_UP:
-				item := g.data.Items[mainObject]
-				if item.Pickable {
-					characterData := g.data.Character[subject]
-					if slot, exists := characterData.Inventory[item.ID]; exists {
-						slot.Count++
-						characterData.Inventory[item.ID] = slot
-					} else {
-						characterData.Inventory[item.ID] = model.InventorySlot{
-							Count: 1,
-							Item:  item,
-						}
-					}
-					locationData := g.data.Locations[location]
-					delete(locationData.Items, item.ID)
-					actionToExecute.ExecuteAction()
-				} else {
-					g.SaySomething("I can't pick that up.")
-				}
-			case model.USE:
-				actionToExecute.ExecuteAction()
-			case model.MOVE_TO:
-				actionToExecute.ExecuteAction()
-			case model.LOOK_AT:
-				actionToExecute.ExecuteAction()
-			default:
-				log.Printf("Invalid verb '%s' for non-scripted action", verb)
-			}
-		} else {
-			log.Printf("Action %s has neither a script nor an ExecuteAction function.", inputTrigger)
-		}
-	*/
 
-	//if actionToExecute.ExecuteAfter != nil {
-	//	actionToExecute.ExecuteAfter()
-	//}
+	switch actionToExecute.Verb {
+	case model.GIVE_TO:
+		item := g.data.Items[mainObject]
+		character := g.data.Character[subject]
+		if character.Inventory[item.ID].Count == 1 {
+			delete(character.Inventory, item.ID)
+		} else {
+			slot := character.Inventory[item.ID]
+			slot.Count--
+			character.Inventory[item.ID] = slot
+		}
+
+	case model.TALK_TO:
+		// TODO: Implement talk to
+	case model.PICK_UP:
+		item := g.data.Items[mainObject]
+		if item.Pickable {
+			characterData := g.data.Character[subject]
+			if slot, exists := characterData.Inventory[item.ID]; exists {
+				slot.Count++
+				characterData.Inventory[item.ID] = slot
+			} else {
+				characterData.Inventory[item.ID] = model.InventorySlot{
+					Count: 1,
+					Item:  item,
+				}
+			}
+			locationData := g.data.Locations[location]
+			delete(locationData.Items, item.ID)
+
+		} else {
+			g.SaySomething("I can't pick that up.")
+		}
+	case model.USE:
+		//TODO: Implement use
+	case model.MOVE_TO:
+		//TODO: Implement move to
+	case model.LOOK_AT:
+		//TODO: Implement look at
+	default:
+		log.Printf("Invalid verb '%s' for non-scripted action", verb)
+	}
+
 }
 
 func (g *Game) getActionToExecute(subject string, verb model.Verb, mainObject string, secondObject string, location string) model.Action {
