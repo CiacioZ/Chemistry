@@ -452,28 +452,64 @@ func (g *Game) drawText(screen *ebiten.Image, currentCharacter model.Character) 
 		animation, frame := g.GetCurrentCharacterAnimation()
 		characterFrameImage := g.GetCurrentCharacter().Animations[animation][frame]
 
-		_, height := g.GetSpriteDimensions(characterFrameImage)
+		_, spriteHeight := g.GetSpriteDimensions(characterFrameImage)
+		textToDisplay := g.state.textToDraw[0]
+		fontSize := 24.0 // Assuming a fixed font size, adjust if dynamic
+
+		// Create a face for measuring text
+		goTextFace := &text.GoTextFace{
+			Source: fontFaceSource, // or fontFaceOutlineSource, assuming they have similar metrics
+			Size:   fontSize,
+		}
+		textAdvance, textHeight := text.Measure(textToDisplay, goTextFace, goTextFace.Size*2) // Using Size*2 for line height, adjust if needed
+		textWidth := float64(textAdvance)
+
+		// Calculate initial desired position (above character, centered)
+		charScaledHeight := float64(spriteHeight) * 2.5 // Assuming character is scaled by 2.5 as in drawCharacter
+
+		// Calculate the desired text center X and top Y in world coordinates
+		worldTextCenterX := float64(g.state.currentCharacterPosition.X)
+		worldTextTopY := float64(g.state.currentCharacterPosition.Y) - charScaledHeight - textHeight - 20.0
+
+		// What are the visible world coordinates on screen?
+		margin := 5.0 // Small margin from screen edges
+		halfTextWidth := textWidth / 2.0
+
+		// Adjust worldTextCenterX so the text stays on screen
+		visibleWorldLeft := g.state.camera.Position[0] + margin
+		visibleWorldRight := g.state.camera.Position[0] + screenWidth - margin
+
+		if worldTextCenterX-halfTextWidth < visibleWorldLeft {
+			worldTextCenterX = visibleWorldLeft + halfTextWidth
+		} else if worldTextCenterX+halfTextWidth > visibleWorldRight {
+			worldTextCenterX = visibleWorldRight - halfTextWidth
+		}
+
+		// Adjust text's top Y
+		visibleWorldTopEdge := g.state.camera.Position[1] + margin
+		visibleWorldBottomEdge := g.state.camera.Position[1] + screenHeight - margin - textHeight // Space for text height
+
+		if worldTextTopY < visibleWorldTopEdge {
+			worldTextTopY = visibleWorldTopEdge
+		} else if worldTextTopY > visibleWorldBottomEdge { // worldTextTopY is already the top of the text
+			worldTextTopY = visibleWorldBottomEdge
+		}
 
 		opRegular := &text.DrawOptions{}
-		opRegular.GeoM.Translate(float64(g.state.currentCharacterPosition.X), float64(g.state.currentCharacterPosition.Y-height-20))
-		//opRegular.LineSpacing = 30
+		opRegular.GeoM.Translate(worldTextCenterX, worldTextTopY)
 		opRegular.ColorScale.ScaleWithColor(talkColor)
-		opRegular.PrimaryAlign = text.AlignCenter
-		opRegular.SecondaryAlign = text.AlignStart
-		text.Draw(screen, g.state.textToDraw[0], &text.GoTextFace{
-			Source: fontFaceSource,
-			Size:   24,
-		}, opRegular)
+		opRegular.PrimaryAlign = text.AlignCenter                      // Horizontal alignment
+		opRegular.SecondaryAlign = text.AlignStart                     // Vertical alignment (Y is top)
+		text.Draw(g.state.world, textToDisplay, goTextFace, opRegular) // Draw onto the world image
 
 		opOutline := &text.DrawOptions{}
-		opOutline.GeoM.Translate(float64(g.state.currentCharacterPosition.X), float64(g.state.currentCharacterPosition.Y-height-20))
-		//opOutline.LineSpacing = 30
+		opOutline.GeoM.Translate(worldTextCenterX, worldTextTopY)
 		opOutline.ColorScale.ScaleWithColor(color.Black)
 		opOutline.PrimaryAlign = text.AlignCenter
 		opOutline.SecondaryAlign = text.AlignStart
-		text.Draw(screen, g.state.textToDraw[0], &text.GoTextFace{
+		text.Draw(g.state.world, textToDisplay, &text.GoTextFace{ // Use a new face for outline if needed, or reuse
 			Source: fontFaceOutlineSource,
-			Size:   24,
+			Size:   fontSize,
 		}, opOutline)
 	}
 
