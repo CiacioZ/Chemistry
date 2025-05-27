@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'; // Added useRef, useCallback
 import { useDiagramContext } from '../flow-diagram/contexts/DiagramContext';
 import { Entity, ItemEntity, Animation, AnimationFrame } from '../flow-diagram/types/index'; // Aggiunto ItemEntity, Animation, AnimationFrame
+import { v4 as uuidv4 } from 'uuid'; // Import uuid
 
 // TODO: Definire un'interfaccia basata sulla struct model.Item di Go
 interface ItemData {
@@ -45,94 +46,76 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ imageUploadService }) =>
 
   useEffect(() => {
     if (selectedItemId) {
-      const selectedEntity = graphItems.find(item => item.name === selectedItemId);
+      const selectedEntity = graphItems.find(item => item.id === selectedItemId);
       if (selectedEntity) {
-        isInitialDataLoad.current = true; // Segna che stiamo caricando i dati iniziali
+        isInitialDataLoad.current = true;
         setFormData({
-          id: selectedEntity.name,
+          id: selectedEntity.id,
           name: selectedEntity.name,
           description: selectedEntity.details?.description || '',
           imageData: selectedEntity.details?.imageData || '',
           canBePickedUp: selectedEntity.details?.canBePickedUp || false,
           inventoryImageData: selectedEntity.details?.inventoryImageData || '',
-          animations: selectedEntity.details?.animations || [], // Load animations
+          animations: selectedEntity.details?.animations || [],
         });
       } else {
-        setSelectedItemId(null); // Item non trovato, deseleziona
+        setSelectedItemId(null);
         setFormData({});
       }
     } else {
-      setFormData({}); // Nessun item selezionato
+      setFormData({});
     }
   }, [selectedItemId, graphItems]);
 
 
   // useEffect per l'auto-salvataggio
   useEffect(() => {
-    // 1. Non salvare se è il caricamento iniziale dei dati per l'item selezionato.
     if (isInitialDataLoad.current) {
-      isInitialDataLoad.current = false; // Resetta il flag per le modifiche successive
+      isInitialDataLoad.current = false;
       return;
     }
 
-    // 2. Salva solo se un item è selezionato e formData è popolato.
-    // formData.id dovrebbe contenere la chiave dell'item in modifica.
     if (!selectedItemId || !formData.id) {
       return;
     }
 
-    const itemToUpdateKey = selectedItemId; // La chiave dell'item nell'array `entities`
+    const itemIdToUpdate = selectedItemId;
 
-    // Gestione del rename: se formData.name è diverso da itemToUpdateKey
     const newName = formData.name;
-    if (newName && newName !== itemToUpdateKey) {
-      // This 'entities.some' uses the 'entities' from the closure when the effect was scheduled.
-      // Since 'entities' will be in the dependency array, this will use the current 'entities'.
-      const isNameTaken = entities.some(e => e.name === newName && e.name !== itemToUpdateKey);
+    if (newName) {
+      const isNameTaken = entities.some(e => e.type === 'Item' && e.name === newName && e.id !== itemIdToUpdate);
       if (isNameTaken) {
-        alert(`Il nome dell'item "${newName}" è già in uso. Modifica del nome annullata.`);
-        setFormData(prev => ({ ...prev, name: itemToUpdateKey }));
+        alert(`Il nome dell\'item "${newName}" è già in uso. Modifica del nome annullata.`);
+        const originalItem = entities.find(e => e.id === itemIdToUpdate);
+        setFormData(prev => ({ ...prev, name: originalItem?.name || '' }));
         return; 
       }
     }
 
-    // Calculate the new entities array based on the current `entities`
     const newEntitiesValue: Entity[] = entities.map((entity: Entity) => {
-      if (entity.type === 'Item' && entity.name === itemToUpdateKey) { 
+      if (entity.id === itemIdToUpdate && entity.type === 'Item') {
         const currentEntity = entity as ItemEntity;
         return {
           ...currentEntity,
-          name: formData.name || currentEntity.name, 
+          id: currentEntity.id,
+          name: formData.name || currentEntity.name,
           details: {
             ...(currentEntity.details || {}),
             description: formData.description || '',
             imageData: formData.imageData || '',
             canBePickedUp: formData.canBePickedUp || false,
             inventoryImageData: formData.inventoryImageData || '',
-            animations: formData.animations || [], // Save animations
+            animations: formData.animations || [],
           },
         };
       }
       return entity;
     });
 
-    // To prevent infinite loops, only call setEntities if the data has actually changed.
-    // JSON.stringify is a simple way for deep comparison but has performance caveats for large/complex data.
-    // Consider a proper deep-equal utility or immutable update patterns for production.
     if (JSON.stringify(entities) !== JSON.stringify(newEntitiesValue)) {
       setEntities(newEntitiesValue);
     }
-
-    // Se il rename ha avuto successo (non bloccato da isNameTaken), aggiorna selectedItemId al nuovo nome
-    if (newName && newName !== itemToUpdateKey) {
-       // Ensure the name isn't taken in the *new* array if setEntities was conditional or async
-       // This check might be redundant if the earlier `isNameTaken` is sufficient and updates are synchronous
-       const nameStillAvailableInNewArray = !newEntitiesValue.some(e => e.name === newName && e.name !== newName /* check if newName is now the key */);
-       if (nameStillAvailableInNewArray) { // Simplified: assuming the previous check is robust enough for this flow
-           setSelectedItemId(newName); 
-       }
-    }
-  }, [formData, selectedItemId, setEntities, entities]); // `entities` is now a dependency
+  }, [formData, selectedItemId, setEntities, entities]);
 
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -143,29 +126,53 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ imageUploadService }) =>
       ...prevData,
       [name]: type === 'checkbox' ? checked : value,
     }));
-    // L'useEffect che osserva formData gestirà il salvataggio.
   };
 
   const handleSelectItem = (id: string) => {
     setSelectedItemId(id);
+    setSelectedAnimationIndex(null);
+    setSelectedFrameIndex(null);
+  };
+
+  const handleCreateItem = () => {
+    const newGuid = uuidv4();
+    const baseNewName = "NewItem";
+    let newName = baseNewName;
+    let counter = 1;
+    while (entities.some(e => e.name === newName && e.type === 'Item')) {
+        newName = `${baseNewName}_${counter}`;
+        counter++;
+    }
+
+    const newItem: ItemEntity = {
+        id: newGuid,
+        type: 'Item',
+        name: newName,
+        internal: false,
+        details: {
+            description: '',
+            imageData: '',
+            canBePickedUp: false,
+            inventoryImageData: '',
+            animations: [],
+            useWith: false // Default value for useWith
+        }
+    };
+    setEntities(prevEntities => [...prevEntities, newItem]);
+    setSelectedItemId(newGuid);
   };
 
   const handleDeleteItem = useCallback((itemIdToDelete: string) => {
-    if (window.confirm(`Sei sicuro di voler cancellare l'item "${itemIdToDelete}"? Questa azione non può essere annullata.`)) {
-      // Calculate the new entities array by filtering out the item to delete
-      const newEntities = entities.filter((entity: Entity) => entity.name !== itemIdToDelete);
-      setEntities(newEntities); // Pass the new array directly
+    if (window.confirm(`Sei sicuro di voler cancellare l\'item? Questa azione non può essere annullata.`)) {
+      const newEntities = entities.filter((entity: Entity) => entity.id !== itemIdToDelete);
+      setEntities(newEntities);
 
       if (selectedItemId === itemIdToDelete) {
         setSelectedItemId(null);
         setFormData({});
       }
-      // Potresti voler mostrare una notifica di successo qui
     }
-  }, [selectedItemId, setEntities, entities]); // Added `entities` to the dependency array
-
-  // Rimuoviamo handleSaveChanges
-  // const handleSaveChanges = () => { ... };
+  }, [selectedItemId, setEntities, entities]);
 
   const handleImageUploadClick = () => {
     fileInputRef.current?.click();
@@ -237,7 +244,6 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ imageUploadService }) =>
         inventoryFileInputRef.current.value = '';
       }
     }
-    // L'useEffect che osserva formData gestirà il salvataggio.
   };
 
   // Funzioni per gestire le animazioni (adattate da CharacterEditor)
@@ -378,29 +384,34 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ imageUploadService }) =>
     }));
   };
 
-  // TODO: Implementare funzioni Create New, Delete (Delete Item rimane)
   return (
     <div className="flex h-full space-x-4">
       {/* Colonna Sinistra: Lista degli Items */}
       <div className="w-1/3 border rounded-md shadow-sm p-4 overflow-y-auto bg-gray-50 dark:bg-gray-700">
-        <h3 className="text-lg font-semibold mb-3">Items</h3>
-        {/* TODO: Bottone "New Item" */}
+        <div className="flex justify-between items-center mb-3">
+            <h3 className="text-lg font-semibold">Items</h3>
+            <button 
+                onClick={handleCreateItem}
+                className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-sm"
+            >
+                + New Item
+            </button>
+        </div>
         <ul>
           {graphItems.map((item) => (
             <li
-              key={item.name}
-              // onClick={() => handleSelectItem(item.name)} // Spostato per permettere click separati
+              key={item.id}
               className={`flex justify-between items-center p-2 mb-1 rounded cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 ${
-                selectedItemId === item.name ? 'bg-blue-100 dark:bg-blue-800 font-semibold' : ''
+                selectedItemId === item.id ? 'bg-blue-100 dark:bg-blue-800 font-semibold' : ''
               }`}
             >
-              <span onClick={() => handleSelectItem(item.name)} className="flex-grow"> {/* Clicca sul nome per selezionare */}
+              <span onClick={() => handleSelectItem(item.id)} className="flex-grow">
                 {item.name}
               </span>
               <button
                 onClick={(e) => {
-                  e.stopPropagation(); // Impedisce al click di propagarsi al li e selezionare l'item
-                  handleDeleteItem(item.name);
+                  e.stopPropagation();
+                  handleDeleteItem(item.id);
                 }}
                 className="ml-2 p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 rounded-full hover:bg-red-100 dark:hover:bg-red-700/50 focus:outline-none"
                 aria-label={`Delete ${item.name}`}
@@ -417,8 +428,8 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ imageUploadService }) =>
 
       {/* Colonna Destra: Form di Editing Item */}
       <div className="w-2/3 flex flex-col space-y-4 border rounded-md shadow-sm p-4 bg-white dark:bg-gray-800 overflow-y-auto">
-        <h2 className="text-xl font-semibold">Item Details</h2>
-        {selectedItemId ? (
+        <h2 className="text-xl font-semibold mb-4">Item Details</h2>
+        {selectedItemId && formData.id ? (
           <>
             {/* Sezione Upload e Anteprima Immagine (Item Image) */}
             <div className="border rounded-md p-3 bg-gray-50 dark:bg-gray-700/50 shadow-sm">
@@ -446,7 +457,7 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ imageUploadService }) =>
                     ref={imageRef}
                     src={formData.imageData}
                     alt="Item image preview"
-                    className="max-w-full max-h-full object-contain" // Scala per adattarsi al contenitore
+                    className="max-w-full max-h-full object-contain"
                     onError={(e) => {
                         const target = e.currentTarget as HTMLImageElement;
                         target.style.display = 'none';
@@ -485,11 +496,11 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ imageUploadService }) =>
             </div>
 
             {/* Form per altri dettagli */}
-            <form className="space-y-4 pt-2"> {/* Aggiunto un po' di padding top per separazione */}
-              {/* ID */}
+            <form className="space-y-4 pt-2" onSubmit={(e) => e.preventDefault()}>
+              {/* ID (GUID) - Read-only */}
               <div className="mb-4">
                 <label htmlFor="itemId" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Item ID (Read-only)
+                  Item ID (GUID - Read-only)
                 </label>
                 <input
                   type="text"
@@ -564,7 +575,7 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ imageUploadService }) =>
                   </div>
                   <div 
                     className="mt-1 w-full flex justify-center items-center bg-gray-200 dark:bg-gray-600 rounded" 
-                    style={{ minHeight: '100px', maxHeight: '150px', overflow: 'hidden' }} // Area anteprima più piccola per inventario
+                    style={{ minHeight: '100px', maxHeight: '150px', overflow: 'hidden' }}
                   >
                     {formData.inventoryImageData ? (
                       <img
@@ -696,8 +707,13 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ imageUploadService }) =>
               </div>
 
               {/* Bottoni Azioni */}
-              <div className="flex justify-end space-x-2 mt-6">               
-                <button type="button" className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600">
+              <div className="flex justify-end space-x-2 mt-6">
+                <button 
+                  type="button" 
+                  onClick={() => handleDeleteItem(selectedItemId)}
+                  className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+                  disabled={!selectedItemId}
+                >
                   Delete Item
                 </button>
               </div>
@@ -705,7 +721,7 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ imageUploadService }) =>
           </>
         ) : (
           <div className="text-center text-gray-500 dark:text-gray-400 mt-10">
-            Select an item from the list to view or edit its details.
+            Select an item from the list to view or edit its details, or create a new one.
           </div>
         )}
       </div>

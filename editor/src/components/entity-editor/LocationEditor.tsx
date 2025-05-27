@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback, Dispatch, SetStateAction } from 'react'; // Added useMemo
+import React, { useState, useEffect, useMemo, useCallback, Dispatch, SetStateAction, useRef } from 'react'; // Added useRef
 import { useDiagramContext } from '../flow-diagram/contexts/DiagramContext';
 import { Entity, LocationEntity, ItemEntity, CharacterEntity } from '../flow-diagram/types/index'; // Importa ItemEntity e CharacterEntity
 import { PolygonEditor } from './PolygonEditor';
 import { PlacementEditor } from './PlacementEditor'; // Assicurati che questo import sia corretto
+import { v4 as uuidv4 } from 'uuid'; // Import uuid
 
 // Interface for the detailed location data used in the form
 interface LocationData {
@@ -41,34 +42,95 @@ export const LocationEditor: React.FC<LocationEditorProps> = ({ imageUploadServi
   const [formData, setFormData] = useState<Partial<LocationData>>({});
   // Stato per la modalità di editing corrente
   const [editorMode, setEditorMode] = useState<EditorMode>('polygons');
+  const isInitialDataLoad = useRef(false);
 
-  // Effect to load/reset form data when selection changes
   useEffect(() => {
     if (selectedLocationId) {
-      // Find the selected entity
-      const selectedEntity = graphLocations.find(loc => loc.name === selectedLocationId);
-      if (selectedEntity) { // selectedEntity is now LocationEntity
-        const details = selectedEntity.details || {}; // Ensure details is an object
-        // Initialize form data based on the selected entity
+      const selectedEntity = graphLocations.find(loc => loc.id === selectedLocationId);
+      if (selectedEntity) {
+        isInitialDataLoad.current = true;
+        const details = selectedEntity.details || {};
         setFormData({
-          id: selectedEntity.name, // ID is the entity value
-          name: selectedEntity.name, // Default name is the entity value
-          description: details.description || '', // Access safely
-          background: details.backgroundImage || '', // Access safely
+          id: selectedEntity.id,
+          name: selectedEntity.name,
+          description: details.description || '',
+          background: details.backgroundImage || '',
         });
-        // Potrebbe essere utile resettare la modalità quando si cambia location,
-        // o mantenerla, a seconda della UX desiderata. Per ora la manteniamo.
-        // setEditorMode('polygons'); 
       } else {
-        // If the selected ID doesn't match any current entity, reset
         setSelectedLocationId(null);
         setFormData({});
       }
     } else {
-      // Reset form if no location is selected
       setFormData({});
     }
-  }, [selectedLocationId, graphLocations]); // Depend on graphLocations as well
+  }, [selectedLocationId, graphLocations]); // graphLocations depends on entities, so this effect re-runs if entities change elsewhere
+
+  // Auto-save for name and description
+  useEffect(() => {
+    if (isInitialDataLoad.current) {
+        isInitialDataLoad.current = false;
+        return;
+    }
+    // Ensure formData.name is defined before trying to save. formData.description can be empty.
+    if (!selectedLocationId || !formData.id || typeof formData.name === 'undefined') { 
+        return;
+    }
+
+    const locationIdToUpdate = selectedLocationId;
+
+    setEntities(prevEntities => {
+        let entityActuallyChanged = false; // Flag to track if the specific location entity was changed
+        const updatedEntities = prevEntities.map(entity => {
+            if (entity.id === locationIdToUpdate && entity.type === 'Location') {
+                const locEntity = entity as LocationEntity;
+                const currentDetails = locEntity.details || {};
+                // Ensure formData.name and formData.description are treated as empty strings if null/undefined for comparison & assignment
+                const newName = formData.name || ''; 
+                const newDescription = formData.description || '';
+
+                const currentName = locEntity.name || '';
+                const currentDesc = currentDetails.description || '';
+
+                // Only proceed if name or description has actually changed
+                if (currentName !== newName || currentDesc !== newDescription) {
+                    // Name conflict check: only if the name is actually changing to something new
+                    if (currentName !== newName) {
+                        const isNameTaken = prevEntities.some(e => 
+                            e.type === 'Location' && 
+                            e.name === newName && 
+                            e.id !== locationIdToUpdate
+                        );
+                        if (isNameTaken) {
+                            // console.warn(`Location name "${newName}" is already in use. Update skipped.`);
+                            // If name is taken, do not update this entity, return original.
+                            // Also, consider reverting formData.name here to avoid user confusion or trigger a UI warning.
+                            // For now, just skip update for this entity.
+                            return locEntity; 
+                        }
+                    }
+                    
+                    entityActuallyChanged = true; // Mark that this entity will be changed
+                    return {
+                        ...locEntity,
+                        name: newName,
+                        details: {
+                            ...currentDetails,
+                            description: newDescription,
+                        },
+                    } as LocationEntity;
+                }
+                return locEntity; // Return original if no change to this specific entity
+            }
+            return entity;
+        });
+
+        // Only return a new array if the specific location entity was actually changed
+        if (entityActuallyChanged) {
+            return updatedEntities;
+        }
+        return prevEntities; // Return original array reference if no entity was modified
+    });
+  }, [formData.name, formData.description, selectedLocationId, setEntities]);
 
   // Handler for form input changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -83,14 +145,41 @@ export const LocationEditor: React.FC<LocationEditorProps> = ({ imageUploadServi
   // Handler for selecting a location from the list
   const handleSelectLocation = (id: string) => {
     setSelectedLocationId(id);
-    // Opzionale: resettare la modalità di editing quando si seleziona una nuova location
-    // setEditorMode('polygons'); 
+    setEditorMode('polygons'); // Reset to default editor mode on selection
+  };
+
+  const handleCreateLocation = () => {
+    const newGuid = uuidv4();
+    const baseNewName = "NewLocation";
+    let newName = baseNewName;
+    let counter = 1;
+    while (entities.some(e => e.name === newName && e.type === 'Location')) {
+        newName = `${baseNewName}_${counter}`;
+        counter++;
+    }
+
+    const newLocation: LocationEntity = {
+        id: newGuid,
+        type: 'Location',
+        name: newName,
+        internal: false,
+        details: {
+            description: '',
+            backgroundImage: null,
+            walkableAreas: [],
+            placedItems: [],
+            placedCharacters: []
+        }
+    };
+    setEntities(prevEntities => [...prevEntities, newLocation]);
+    setSelectedLocationId(newGuid); // Select the new location by its GUID
+    setEditorMode('polygons'); // Set to default edit mode
   };
 
   const handleDeleteLocation = useCallback((locationIdToDelete: string) => {
-    if (window.confirm(`Sei sicuro di voler cancellare l'item "${locationIdToDelete}"? Questa azione non può essere annullata.`)) {
+    if (window.confirm(`Sei sicuro di voler cancellare la location? Questa azione non può essere annullata.`)) {
       // Calculate the new entities array by filtering out the item to delete
-      const newEntities = entities.filter((entity: Entity) => entity.name !== locationIdToDelete);
+      const newEntities = entities.filter((entity: Entity) => entity.id !== locationIdToDelete);
       setEntities(newEntities); // Pass the new array directly
 
       if (selectedLocationId === locationIdToDelete) {
@@ -108,27 +197,34 @@ export const LocationEditor: React.FC<LocationEditorProps> = ({ imageUploadServi
 
       {/* Colonna Sinistra: Lista delle Locations */}
       <div className="w-1/3 border rounded-md shadow-sm p-4 overflow-y-auto bg-gray-50 dark:bg-gray-700">
-        <h3 className="text-lg font-semibold mb-3">Locations</h3>
-        {/* TODO: Aggiungere bottone "New Location" (should add a new Entity to context) */}
+        <div className="flex justify-between items-center mb-3">
+            <h3 className="text-lg font-semibold">Locations</h3>
+            <button 
+                onClick={handleCreateLocation}
+                className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-sm"
+            >
+                + New Location
+            </button>
+        </div>
         <ul>
           {/* Map over graphLocations (derived from entities) */}
           {graphLocations.map((loc) => (          
             <li
-              // Use loc.value as the key, as it's the unique identifier from the Entity
-              key={loc.name}
+              // Use loc.id as the key, as it's the unique identifier from the Entity
+              key={loc.id}
               className={`flex justify-between items-center p-2 mb-1 rounded cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 ${
-                // Compare selectedLocationId with loc.value
-                selectedLocationId === loc.name ? 'bg-blue-100 dark:bg-blue-800 font-semibold' : ''
+                // Compare selectedLocationId with loc.id
+                selectedLocationId === loc.id ? 'bg-blue-100 dark:bg-blue-800 font-semibold' : ''
               }`}
             >
-              <span onClick={() => handleSelectLocation(loc.name)} className="flex-grow"> {/* Clicca sul nome per selezionare */}
+              <span onClick={() => handleSelectLocation(loc.id)} className="flex-grow"> {/* Pass GUID to select handler */}
               {loc.name}
               </span>
 
             <button
               onClick={(e) => {
                 e.stopPropagation(); // Impedisce al click di propagarsi al li e selezionare l'item
-                handleDeleteLocation(loc.name);
+                handleDeleteLocation(loc.id); // Pass GUID to delete handler
               }}
               className="ml-2 p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 rounded-full hover:bg-red-100 dark:hover:bg-red-700/50 focus:outline-none"
               aria-label={`Delete ${loc.name}`}
@@ -148,6 +244,47 @@ export const LocationEditor: React.FC<LocationEditorProps> = ({ imageUploadServi
         <h2 className="text-xl font-semibold mb-4">Location Details</h2>
         {selectedLocationId ? (
           <>
+            {/* Display basic Location Name and Description fields if a location is selected */}
+            <div className="mb-4">
+                <label htmlFor="locationId" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Location ID (GUID - Read-only)
+                </label>
+                <input
+                    type="text"
+                    id="locationId"
+                    name="id"
+                    value={formData.id || ''} // This is the GUID
+                    readOnly
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 dark:bg-gray-600 dark:border-gray-500 dark:text-gray-300"
+                />
+            </div>
+            <div className="mb-4">
+                <label htmlFor="locationName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Name
+                </label>
+                <input
+                    type="text"
+                    id="locationName"
+                    name="name"
+                    value={formData.name || ''}
+                    onChange={handleChange} // Assumes handleChange updates formData.name
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                />
+            </div>
+            <div className="mb-4">
+                <label htmlFor="locationDescription" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Description
+                </label>
+                <textarea
+                    id="locationDescription"
+                    name="description"
+                    rows={2} // Shorter description field for locations
+                    value={formData.description || ''}
+                    onChange={handleChange} // Assumes handleChange updates formData.description
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                />
+            </div>
+
             {/* Selettore Modalità di Editing */}
             <div className="mb-4 flex space-x-2 border-b pb-2">
               <button
@@ -174,7 +311,7 @@ export const LocationEditor: React.FC<LocationEditorProps> = ({ imageUploadServi
             <div className="flex-grow"> {/* Questo div si espanderà per riempire lo spazio */}
               {(() => {
                 const selectedLocationEntity = entities.find(
-                    (e): e is LocationEntity => e.type === 'Location' && e.name === selectedLocationId
+                    (e): e is LocationEntity => e.type === 'Location' && e.id === selectedLocationId // Find by GUID
                 );
                 
                 if (!selectedLocationEntity) {
@@ -189,8 +326,8 @@ export const LocationEditor: React.FC<LocationEditorProps> = ({ imageUploadServi
                 if (editorMode === 'polygons') {
                   return (
                     <PolygonEditor
-                      key={`${selectedLocationId}-polygons`} // Key univoca per forzare il remount se necessario
-                      locationId={selectedLocationId}
+                      key={`${selectedLocationId}-polygons`}
+                      locationId={selectedLocationId} // Pass GUID
                       initialImageUrlFromEntity={details.backgroundImage || null}
                       initialPolygonsFromEntity={details.walkableAreas || []}
                       entities={entities}
@@ -206,7 +343,7 @@ export const LocationEditor: React.FC<LocationEditorProps> = ({ imageUploadServi
                   return (
                     <PlacementEditor
                       key={`${selectedLocationId}-placement`}
-                      locationId={selectedLocationId}
+                      locationId={selectedLocationId} // Pass GUID
                       locationImageUrl={details.backgroundImage || null}
                       initialPlacedObjects={details.placedItems || []} // da LocationEntityDetails
                       initialPlacedCharacters={details.placedCharacters || []} // da LocationEntityDetails

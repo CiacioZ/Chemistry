@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useDiagramContext } from '../flow-diagram/contexts/DiagramContext';
 import { Entity, CharacterEntity, Animation, AnimationFrame } from '../flow-diagram/types/index';
+import { v4 as uuidv4 } from 'uuid';
 
 // Interfaccia per il formData, aggiornata per includere le animazioni
 interface CharacterData {
@@ -31,11 +32,11 @@ export const CharacterEditor: React.FC = () => {
 
   useEffect(() => {
     if (selectedCharacterId) {
-      const selectedEntity = graphCharacters.find(char => char.name === selectedCharacterId);
+      const selectedEntity = graphCharacters.find(char => char.id === selectedCharacterId);
       if (selectedEntity) {
         isInitialDataLoad.current = true;
         setFormData({
-          id: selectedEntity.name,
+          id: selectedEntity.id,
           name: selectedEntity.name,
           description: selectedEntity.details?.description || '',
           animations: selectedEntity.details?.animations || [],
@@ -63,26 +64,29 @@ export const CharacterEditor: React.FC = () => {
       return;
     }
 
-    const characterToUpdateKey = selectedCharacterId;
+    const characterIdToUpdate = selectedCharacterId;
 
-    // Gestione del rename: se formData.name è diverso da characterToUpdateKey
+    // Gestione del rename: se formData.name è diverso da characterIdToUpdate
     const newName = formData.name;
-    if (newName && newName !== characterToUpdateKey) {
-      const isNameTaken = entities.some(e => e.name === newName && e.name !== characterToUpdateKey);
+    if (newName) {
+      // Check if the new name is taken by another character (excluding the current one being edited)
+      const isNameTaken = entities.some(e => e.type === 'Character' && e.name === newName && e.id !== characterIdToUpdate);
       if (isNameTaken) {
         alert(`Il nome del character "${newName}" è già in uso. Modifica del nome annullata.`);
-        // Ripristina il nome nel formData per evitare loop se l'utente continua a digitare
-        setFormData(prev => ({ ...prev, name: characterToUpdateKey }));
+        // Find the original name to revert to if newName is taken
+        const originalCharacter = entities.find(e => e.id === characterIdToUpdate);
+        setFormData(prev => ({ ...prev, name: originalCharacter?.name || '' }));
         return;
       }
     }
 
     const newEntitiesValue: Entity[] = entities.map((entity: Entity) => {
-      if (entity.type === 'Character' && entity.name === characterToUpdateKey) {
+      if (entity.id === characterIdToUpdate && entity.type === 'Character') {
         const currentEntity = entity as CharacterEntity; // Cast a CharacterEntity
         return {
           ...currentEntity,
-          name: formData.name || currentEntity.name,
+          id: currentEntity.id, // ID (GUID) does not change
+          name: formData.name || currentEntity.name, // Name can change
           details: {
             ...(currentEntity.details || {}),
             description: formData.description || '',
@@ -95,15 +99,6 @@ export const CharacterEditor: React.FC = () => {
 
     if (JSON.stringify(entities) !== JSON.stringify(newEntitiesValue)) {
       setEntities(newEntitiesValue);
-    }
-
-    // Se il rename ha avuto successo, aggiorna selectedCharacterId al nuovo nome
-    if (newName && newName !== characterToUpdateKey) {
-      // Verifica che il nome sia ancora disponibile nel nuovo array (potrebbe essere ridondante)
-      const nameStillAvailableInNewArray = !newEntitiesValue.some(e => e.name === newName && e.name !== newName);
-      if (nameStillAvailableInNewArray) {
-           setSelectedCharacterId(newName);
-       }
     }
   }, [formData, selectedCharacterId, setEntities, entities]); // `entities` è ora una dipendenza
 
@@ -119,22 +114,47 @@ export const CharacterEditor: React.FC = () => {
 
   const handleSelectCharacter = (id: string) => {
     setSelectedCharacterId(id);
+    // Reset animation/frame selection when character changes
+    setSelectedAnimationIndex(null);
+    setSelectedFrameIndex(null);
   };
 
-  // TODO: Implementare funzioni Create New, Delete (i bottoni verranno rimossi o modificati)
-  const handleDeleteItem = useCallback((caracterIdToDelete: string) => {
-    if (window.confirm(`Sei sicuro di voler cancellare l'item "${caracterIdToDelete}"? Questa azione non può essere annullata.`)) {
-      // Calculate the new entities array by filtering out the item to delete
-      const newEntities = entities.filter((entity: Entity) => entity.name !== caracterIdToDelete);
-      setEntities(newEntities); // Pass the new array directly
+  const handleCreateCharacter = () => {
+    const newGuid = uuidv4();
+    const baseNewName = "NewCharacter";
+    let newName = baseNewName;
+    let counter = 1;
+    while (entities.some(e => e.name === newName && e.type === 'Character')) {
+        newName = `${baseNewName}_${counter}`;
+        counter++;
+    }
 
-      if (selectedCharacterId === caracterIdToDelete) {
+    const newCharacter: CharacterEntity = {
+        id: newGuid,
+        type: 'Character',
+        name: newName,
+        internal: false,
+        details: {
+            description: '',
+            animations: [],
+            inventory: []
+        }
+    };
+    setEntities(prevEntities => [...prevEntities, newCharacter]);
+    setSelectedCharacterId(newGuid); // Select the new character by its GUID
+ };
+
+  const handleDeleteCharacter = useCallback((characterIdToDelete: string) => {
+    if (window.confirm(`Sei sicuro di voler cancellare il character? Questa azione non può essere annullata.`)) {
+      const newEntities = entities.filter((entity: Entity) => entity.id !== characterIdToDelete);
+      setEntities(newEntities);
+
+      if (selectedCharacterId === characterIdToDelete) {
         setSelectedCharacterId(null);
         setFormData({});
       }
-      // Potresti voler mostrare una notifica di successo qui
     }
-  }, [selectedCharacterId, setEntities, entities]); 
+  }, [selectedCharacterId, setEntities, entities]);
 
   // Funzioni per gestire le animazioni
   const handleAddAnimation = () => {
@@ -240,25 +260,31 @@ export const CharacterEditor: React.FC = () => {
     <div className="flex h-full space-x-4">
       {/* Colonna Sinistra: Lista dei Characters */}
       <div className="w-1/3 border rounded-md shadow-sm p-4 overflow-y-auto bg-gray-50 dark:bg-gray-700">
-        <h3 className="text-lg font-semibold mb-3">Characters</h3>
-        {/* TODO: Bottone "New Character" */}
+        <div className="flex justify-between items-center mb-3">
+            <h3 className="text-lg font-semibold">Characters</h3>
+            <button 
+                onClick={handleCreateCharacter}
+                className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-sm"
+            >
+                + New Character
+            </button>
+        </div>
         <ul>
-        
           {graphCharacters.map((char) => (
             <li
-              key={char.name}
+              key={char.id}
               className={`flex justify-between items-center p-2 mb-1 rounded cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 ${
-                selectedCharacterId === char.name ? 'bg-blue-100 dark:bg-blue-800 font-semibold' : ''
+                selectedCharacterId === char.id ? 'bg-blue-100 dark:bg-blue-800 font-semibold' : ''
               }`}
             >
-              <span onClick={() => handleSelectCharacter(char.name)} className="flex-grow"> {/* Clicca sul nome per selezionare */}
+              <span onClick={() => handleSelectCharacter(char.id)} className="flex-grow">
                 {char.name}
               </span>
 
               <button
                 onClick={(e) => {
-                  e.stopPropagation(); // Impedisce al click di propagarsi al li e selezionare l'item
-                  handleDeleteItem(char.name);
+                  e.stopPropagation();
+                  handleDeleteCharacter(char.id);
                 }}
                 className="ml-2 p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 rounded-full hover:bg-red-100 dark:hover:bg-red-700/50 focus:outline-none"
                 aria-label={`Delete ${char.name}`}
@@ -277,11 +303,11 @@ export const CharacterEditor: React.FC = () => {
       <div className="w-2/3 border rounded-md shadow-sm p-4 bg-white dark:bg-gray-800 overflow-y-auto">
         <h2 className="text-xl font-semibold mb-4">Character Details</h2>
         {selectedCharacterId ? (
-          <form>
-            {/* ID */}
+          <form onSubmit={(e) => e.preventDefault()}>
+            {/* ID (GUID) - Read-only */}
             <div className="mb-4">
               <label htmlFor="characterId" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Character ID (Read-only)
+                Character ID (GUID - Read-only)
               </label>
               <input
                 type="text"

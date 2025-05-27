@@ -1,6 +1,6 @@
 import React, { useState, useEffect, Dispatch, SetStateAction } from 'react';
-import { Node, Entity, EntityType, VERBS } from '../types/index';
-import type { ActionNode, StateNode } from '../types/index';
+import { Node, Entity, EntityType, VERBS, CharacterDetails, ItemDetails, LocationDetails, AnyEntity, PREDEFINED_ENTITIES, ActionNode, StateNode } from '../types/index';
+import { v4 as uuidv4 } from 'uuid';
 import {
   Dialog,
   DialogContent,
@@ -37,7 +37,6 @@ import {
    fieldName,
    placeholder
  }) => {
-   // Filtra le entità per i tipi richiesti e le raggruppa per tipo
    const groupedEntities = entityTypes.reduce((acc, type) => {
      const typeEntities = entities.filter(e => e.type === type);
      if (typeEntities.length > 0) {
@@ -49,16 +48,13 @@ import {
    const handleAddClick = () => {
      if (entityTypes.length === 0) return;
      
-     // Se siamo nel campo "to" e ci sono sia Character che Item
      if (fieldName === 'to' && entityTypes.length > 1 && value) {
-       const selectedEntity = entities.find(e => e.name === value);
+       const selectedEntity = entities.find(e => e.id === value);
        if (selectedEntity) {
          onAddEntity(fieldName, selectedEntity.type);
          return;
        }
      }
-     
-     // Altrimenti usiamo il primo tipo disponibile
      onAddEntity(fieldName, entityTypes[0]);
    };
  
@@ -67,7 +63,7 @@ import {
        <select
          value={value}
          onChange={(e) => onChange(e.target.value)}
-         className="w-full p-2 border rounded bg-white"
+         className="w-full p-2 border rounded bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white"
        >
          <option value="">{placeholder || `Select ${entityTypes.join('/')}`}</option>
          {Object.entries(groupedEntities).map(([type, typeEntities], index) => (
@@ -82,7 +78,7 @@ import {
                <option disabled>{type}s</option>
              )}
              {typeEntities.map(entity => (
-               <option key={entity.name} value={entity.name}>
+               <option key={entity.id} value={entity.id}>
                  {entity.name}
                </option>
              ))}
@@ -100,13 +96,38 @@ import {
    );
  };
  
+ // Funzione helper per risolvere un nome di entità (potenzialmente predefinito) al suo ID GUID
+ // o restituire il valore se è già un GUID valido o non trovato.
+ const resolveEntityId = (value: string | undefined, allEntities: Entity[]): string => {
+   if (!value) return '';
+
+   // Cerca prima tra le PREDEFINED_ENTITIES per nome
+   const predefined = PREDEFINED_ENTITIES.find(pe => pe.name === value);
+   if (predefined) return predefined.id;
+
+   // Se non è un nome predefinito, controlla se è un ID GUID di un'entità esistente in allEntities
+   // (allEntities dovrebbe includere PREDEFINED_ENTITIES per coerenza, ma PREDEFINED_ENTITIES ha la priorità per i nomi speciali)
+   const existingEntityById = allEntities.find(e => e.id === value);
+   if (existingEntityById) return existingEntityById.id; // È già un GUID valido
+   
+   // Fallback: se value è un nome non predefinito e non un GUID esistente, 
+   // potrebbe essere un nome di un'entità utente. Cerchiamo per nome.
+   const userEntityByName = allEntities.find(e => e.name === value && !e.internal);
+   if (userEntityByName) return userEntityByName.id;
+
+   // Se non trovato, potrebbe essere un vecchio valore o un errore, restituisce vuoto o il valore originale?
+   // Per le dropdown, è meglio restituire '' per evitare di passare un valore non valido.
+   // console.warn(`resolveEntityId: Could not resolve '${value}' to a valid entity ID.`);
+   return ''; // O value, se si preferisce tentare di usare il valore originale
+ };
+ 
  export const NodeDialog: React.FC<{
    node: Node | null;
    open: boolean;
    onOpenChange: (open: boolean) => void;
    onUpdate: (id: string, updates: Partial<Node>) => void;
    entities: Entity[];
-   setEntities: Dispatch<SetStateAction<Entity[]>>; // MODIFICATO
+   setEntities: Dispatch<SetStateAction<Entity[]>>;
  }> = ({
    node,
    open,
@@ -119,35 +140,122 @@ import {
  
    useEffect(() => {
      if (open && node) {
-       setTempValues(node.type === 'action' ? {
-         ...node,
-         from: node.from || 'MAIN_CHARACTER' // Default value for 'from'
-       } : node);
+       if (node.type === 'action') {
+         const actionNode = node as ActionNode;
+         setTempValues({
+           ...actionNode,
+           from: resolveEntityId(actionNode.from || 'MAIN_CHARACTER', entities),
+           to: resolveEntityId(actionNode.to, entities),
+           with: resolveEntityId(actionNode.with, entities),
+           where: resolveEntityId(actionNode.where, entities),
+         });
+       } else {
+         setTempValues(node); // Per StateNode o altri tipi
+       }
      }
-   }, [open, node]);
+   }, [open, node, entities]); // Aggiunto entities alle dipendenze per resolveEntityId
  
    const handleAddEntity = (fieldName: string, type: EntityType) => {
-     if (!type) return; // Guard clause per sicurezza
+     if (!type) return;
      
      const name = prompt(`Enter new ${type.toLowerCase()} name:`);
      if (name) {
-       setEntities([...entities, { type, name: name, internal: false }]);
-       // Selezioniamo automaticamente la nuova entità
-       handleInputChange(fieldName, name);
+       if (entities.some(e => e.type === type && e.name === name)) {
+         alert(`An entity of type '${type}' with the name '${name}' already exists.`);
+         return;
+       }
+
+       const newEntityId = uuidv4();
+       let newEntity: AnyEntity;
+
+       switch (type) {
+         case 'Character':
+           newEntity = {
+             id: newEntityId,
+             type,
+             name,
+             internal: false,
+             details: { description: '', animations: [], inventory: [] },
+           };
+           break;
+         case 'Item':
+           newEntity = {
+             id: newEntityId,
+             type,
+             name,
+             internal: false,
+             details: { description: '', imageData: '', canBePickedUp: false, inventoryImageData: '', animations: [], useWith: false },
+           };
+           break;
+         case 'Location':
+           newEntity = {
+             id: newEntityId,
+             type,
+             name,
+             internal: false,
+             details: { description: '', backgroundImage: null, walkableAreas: [], placedItems: [], placedCharacters: [] },
+           };
+           break;
+         default:
+           console.error("Invalid entity type for creation:", type);
+           return;
+       }
+
+       setEntities(prevEntities => [...prevEntities, newEntity]);
+       handleInputChange(fieldName, newEntityId);
      }
    };
  
    const handleInputChange = (field: string, value: string) => {
-     setTempValues(prev => ({
-       ...prev,
-       [field]: value
-     }));
+     // Se il campo è 'verb', e cambia, potremmo dover resettare 'to' e 'with'
+     // se i tipi di entità ammessi per 'to' cambiano o se 'with' non è più applicabile.
+     if (field === 'verb') {
+       const newToTypes = getToEntityTypes(value);
+       const currentToEntity = entities.find(e => e.id === (tempValues as Partial<ActionNode>).to);
+       
+       let resetTo = true;
+       if (currentToEntity && newToTypes.includes(currentToEntity.type)) {
+         resetTo = false; // L'entità attuale è ancora valida
+       }
+
+       setTempValues(prev => ({
+         ...prev,
+         verb: value,
+         to: resetTo ? '' : (prev as Partial<ActionNode>).to, // Resetta 'to' se il tipo non è più valido
+         with: value !== 'Interact with' ? '' : (prev as Partial<ActionNode>).with, // Resetta 'with' se il verbo non è 'Interact with'
+       }));
+     } else {
+       setTempValues(prev => ({
+         ...prev,
+         [field]: value
+       }));
+     }
+   };
+ 
+   const handleDialogSave = () => {
+     if (node) {
+         // Prima di salvare, assicurarsi che i valori nelle dropdown siano ID GUID.
+         // La EntityDropdown dovrebbe già passare ID GUID tramite onChange.
+         // Se un campo potesse contenere un nome (es. da un input testuale libero che non abbiamo qui),
+         // andrebbe risolto a GUID qui, ma per le dropdown è già gestito.
+         onUpdate(node.id, tempValues);
+         onOpenChange(false);
+     }
    };
  
    if (!node) return null;
  
+   // Determina i tipi di entità per il campo 'to' basati sul verbo corrente
+   const toEntityTypes = node.type === 'action' ? getToEntityTypes((tempValues as Partial<ActionNode>).verb || '') : [];
+   const defaultFromValue = resolveEntityId('MAIN_CHARACTER', entities); // Risolvi MAIN_CHARACTER per il default
+ 
    return (
-     <Dialog open={open} onOpenChange={onOpenChange}>
+     <Dialog open={open} onOpenChange={(isOpen) => {
+         if (!isOpen) {
+             // Considera se resettare tempValues o fare altre pulizie quando si chiude senza salvare
+         }
+         onOpenChange(isOpen);
+     }}>
        <DialogContent>
          <DialogHeader>
            <DialogTitle>
@@ -161,7 +269,7 @@ import {
                type="text"
                value={tempValues.label || ''}
                onChange={e => handleInputChange('label', e.target.value)}
-               className="w-full p-2 mt-1 border rounded"
+               className="w-full p-2 mt-1 border rounded bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white"
              />
            </div>
  
@@ -170,26 +278,21 @@ import {
                <div>
                  <label className="text-sm font-medium">From</label>
                  <EntityDropdown
-                   value={(tempValues as Partial<ActionNode>).from || 'MAIN_CHARACTER'}
+                   value={(tempValues as Partial<ActionNode>).from || defaultFromValue}
                    onChange={(value) => handleInputChange('from', value)}
                    entityTypes={['Character']}
                    entities={entities}
                    onAddEntity={handleAddEntity}
                    fieldName="from"
+                   placeholder="Select Character"
                  />
                </div>
                <div>
                  <label className="text-sm font-medium">Verb</label>
                  <select
                    value={(tempValues as Partial<ActionNode>).verb || ''}
-                   onChange={e => {
-                     handleInputChange('verb', e.target.value);
-                     // Reset with quando il verbo non è più "Interact with"
-                     if (e.target.value !== 'Interact with') {
-                       handleInputChange('with', '');
-                     }
-                   }}
-                   className="w-full p-2 mt-1 border rounded bg-white"
+                   onChange={e => handleInputChange('verb', e.target.value)}
+                   className="w-full p-2 mt-1 border rounded bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                  >
                    <option value="">Select verb</option>
                    {VERBS.map(verb => (
@@ -202,10 +305,11 @@ import {
                  <EntityDropdown
                    value={(tempValues as Partial<ActionNode>).to || ''}
                    onChange={(value) => handleInputChange('to', value)}
-                   entityTypes={getToEntityTypes((tempValues as Partial<ActionNode>).verb || '')}
+                   entityTypes={toEntityTypes}
                    entities={entities}
                    onAddEntity={handleAddEntity}
                    fieldName="to"
+                   placeholder={`Select ${toEntityTypes.join('/')}`}
                  />
                </div>
                {(tempValues as Partial<ActionNode>).verb === 'Interact with' && (
@@ -218,6 +322,7 @@ import {
                      entities={entities}
                      onAddEntity={handleAddEntity}
                      fieldName="with"
+                     placeholder="Select Item"
                    />
                  </div>
                )}
@@ -230,6 +335,7 @@ import {
                    entities={entities}
                    onAddEntity={handleAddEntity}
                    fieldName="where"
+                   placeholder="Select Location"
                  />
                </div>
                <div>
@@ -246,34 +352,19 @@ import {
            ) : (
              <div>
                <label className="text-sm font-medium">Description</label>
-               <input
-                 type="text"
+               <textarea
                  value={(tempValues as Partial<StateNode>).description || ''}
-                 onChange={e => handleInputChange('description', (e.target.value as string))}
-                 className="w-full p-2 mt-1 border rounded"
+                 onChange={e => handleInputChange('description', e.target.value)}
+                 rows={3}
+                 className="w-full p-2 mt-1 border rounded bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                />
              </div>
            )}
          </div>
  
-         <div className="mt-6 flex justify-end gap-3">
-           <button
-             onClick={() => onOpenChange(false)}
-             className="px-4 py-2 rounded bg-gray-100 hover:bg-gray-200"
-           >
-             Cancel
-           </button>
-           <button
-             onClick={() => {
-               if (node) {
-                 onUpdate(node.id, tempValues);
-                 onOpenChange(false);
-               }
-             }}
-             className="px-4 py-2 rounded bg-blue-500 text-white hover:bg-blue-600"
-           >
-             OK
-           </button>
+         <div className="mt-6 flex justify-end space-x-2">
+           <button onClick={() => onOpenChange(false)} className="px-4 py-2 border rounded text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-600">Cancel</button>
+           <button onClick={handleDialogSave} className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Save</button>
          </div>
        </DialogContent>
      </Dialog>

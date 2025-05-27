@@ -28,19 +28,40 @@ export const PlacementEditor: React.FC<PlacementEditorProps> = ({
   const [selectedEntityTypeToPlace, setSelectedEntityTypeToPlace] = useState<'Item' | 'Character' | null>(null);
   const [selectedEntityIdToPlace, setSelectedEntityIdToPlace] = useState<string | null>(null);
   const [cursorImageUrl, setCursorImageUrl] = useState<string | null>(null); // Stato per l'URL dell'immagine del cursore
+  const [naturalImageSize, setNaturalImageSize] = useState<{ width: number; height: number } | null>(null);
   
-  const imageContainerRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null); // Ex imageContainerRef, ora per lo scroll
+  const contentWrapperRef = useRef<HTMLDivElement>(null); // Nuovo div per contenuto a dimensione naturale
+  const hiddenImageRef = useRef<HTMLImageElement>(null); // Per caricare e ottenere dimensioni naturali
+
+  // Effetto per caricare le dimensioni naturali dell'immagine di background
+  useEffect(() => {
+    if (locationImageUrl && hiddenImageRef.current) {
+      hiddenImageRef.current.src = locationImageUrl;
+    } else {
+      setNaturalImageSize(null); // Resetta se non c'è URL
+    }
+  }, [locationImageUrl]);
+
+  const handleHiddenImageLoad = () => {
+    if (hiddenImageRef.current) {
+      setNaturalImageSize({
+        width: hiddenImageRef.current.naturalWidth,
+        height: hiddenImageRef.current.naturalHeight,
+      });
+    }
+  };
 
   // Effetto per aggiornare lo stato globale quando placedObjects o placedCharacters cambiano
   useEffect(() => {
     setEntities((prevEntities: Entity[]) => 
       prevEntities.map((entity: Entity) => { 
-        if (entity.type === 'Location' && entity.name === locationId) {
+        if (entity.type === 'Location' && entity.id === locationId) {
           return {
             ...entity,
             details: {
               ...(entity.details || {}), 
-              placedItems: placedObjects, // Corretto da placedItems a placedObjects
+              placedItems: placedObjects,
               placedCharacters: placedCharacters,
             }
           } as LocationEntity;
@@ -55,27 +76,30 @@ export const PlacementEditor: React.FC<PlacementEditorProps> = ({
     if (selectedEntityIdToPlace && selectedEntityTypeToPlace) {
       let imgSrc: string | undefined | null = null;
       if (selectedEntityTypeToPlace === 'Item') {
-        const itemEntity = allItems.find(i => i.name === selectedEntityIdToPlace);
+        const itemEntity = allItems.find(i => i.id === selectedEntityIdToPlace);
         imgSrc = itemEntity?.details?.inventoryImageData || itemEntity?.details?.imageData;
       } else if (selectedEntityTypeToPlace === 'Character') {
-        const charEntity = allCharacters.find(c => c.name === selectedEntityIdToPlace);
-        // Assumendo che i personaggi possano avere 'mapSprite' o un fallback.
-        // Dovrai adattare 'charEntity?.details?.mapSprite' alla struttura effettiva dei dati del tuo personaggio.
-        imgSrc = (charEntity?.details as any)?.mapSprite || charEntity?.details?.imageData; // Esempio, adatta se necessario
+        const charEntity = allCharacters.find(c => c.id === selectedEntityIdToPlace);
+        imgSrc = (charEntity?.details as any)?.mapSprite || charEntity?.details?.imageData;
       }
       setCursorImageUrl(imgSrc || null);
     } else {
-      setCursorImageUrl(null); // Rimuovi l'immagine del cursore se nulla è selezionato
+      setCursorImageUrl(null);
     }
   }, [selectedEntityIdToPlace, selectedEntityTypeToPlace, allItems, allCharacters]);
 
 
   const handleMapClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (!selectedEntityIdToPlace || !selectedEntityTypeToPlace || !imageContainerRef.current) return;
+    if (!selectedEntityIdToPlace || !selectedEntityTypeToPlace || !contentWrapperRef.current || !naturalImageSize) return;
 
-    const rect = imageContainerRef.current.getBoundingClientRect();
-    const x = ((event.clientX - rect.left) / rect.width) * 100;
-    const y = ((event.clientY - rect.top) / rect.height) * 100;
+    const rect = contentWrapperRef.current.getBoundingClientRect();
+    // Calcola coordinate relative al contentWrapperRef (che ha dimensioni naturali)
+    const clickX = event.clientX - rect.left;
+    const clickY = event.clientY - rect.top;
+
+    // Converti in percentuale delle dimensioni naturali
+    const x = (clickX / naturalImageSize.width) * 100;
+    const y = (clickY / naturalImageSize.height) * 100;
 
     const newPosition = { x, y };
 
@@ -83,12 +107,10 @@ export const PlacementEditor: React.FC<PlacementEditorProps> = ({
       setPlacedObjects(prev => {
         const existingIndex = prev.findIndex(p => p.entityId === selectedEntityIdToPlace);
         if (existingIndex !== -1) {
-          // Aggiorna la posizione dell'oggetto esistente
           return prev.map((p, index) => 
             index === existingIndex ? { ...p, position: newPosition, interactionSpot: newPosition } : p
           );
         } else {
-          // Aggiungi il nuovo oggetto
           const newPlacedEntity: PlacedEntity = { entityId: selectedEntityIdToPlace, position: newPosition, interactionSpot: newPosition };
           return [...prev, newPlacedEntity];
         }
@@ -97,12 +119,10 @@ export const PlacementEditor: React.FC<PlacementEditorProps> = ({
       setPlacedCharacters(prev => {
         const existingIndex = prev.findIndex(p => p.entityId === selectedEntityIdToPlace);
         if (existingIndex !== -1) {
-          // Aggiorna la posizione del personaggio esistente
           return prev.map((p, index) => 
             index === existingIndex ? { ...p, position: newPosition, interactionSpot: newPosition } : p
           );
         } else {
-          // Aggiungi il nuovo personaggio
           const newPlacedEntity: PlacedEntity = { entityId: selectedEntityIdToPlace, position: newPosition, interactionSpot: newPosition };
           return [...prev, newPlacedEntity];
         }
@@ -112,13 +132,12 @@ export const PlacementEditor: React.FC<PlacementEditorProps> = ({
 
   const getEntityNameById = (id: string, type: 'Item' | 'Character'): string => {
     const list = type === 'Item' ? allItems : allCharacters;
-    const entity = list.find(e => e.name === id);
+    const entity = list.find(e => e.id === id);
     return entity?.name || 'Unknown';
   };
 
   const handleRemovePlacedEntity = (idToRemove: string, type: 'Item' | 'Character') => {
     if (type === 'Item') {
-        // Con il posizionamento unico, possiamo semplificare la rimozione
         setPlacedObjects(prev => prev.filter(p => p.entityId !== idToRemove));
     } else {
         setPlacedCharacters(prev => prev.filter(p => p.entityId !== idToRemove));
@@ -128,6 +147,9 @@ export const PlacementEditor: React.FC<PlacementEditorProps> = ({
 
   return (
     <div className="flex flex-col h-full">
+      {/* Immagine nascosta per caricare e ottenere dimensioni naturali */}
+      <img ref={hiddenImageRef} onLoad={handleHiddenImageLoad} style={{ display: 'none' }} alt="" />
+
       <div className="mb-4 p-2 border rounded bg-gray-100 dark:bg-gray-700">
         <h4 className="font-semibold mb-1">Select Entity to Place:</h4>
         <div className="flex space-x-4">
@@ -144,7 +166,7 @@ export const PlacementEditor: React.FC<PlacementEditorProps> = ({
             >
               <option value="">-- Select Item --</option>
               {allItems.map(item => (
-                <option key={item.name} value={item.name}>{item.name}</option>
+                <option key={item.id} value={item.id}>{item.name}</option>
               ))}
             </select>
           </div>
@@ -161,67 +183,96 @@ export const PlacementEditor: React.FC<PlacementEditorProps> = ({
             >
               <option value="">-- Select Character --</option>
               {allCharacters.map(char => (
-                <option key={char.name} value={char.name}>{char.name}</option>
+                <option key={char.id} value={char.id}>{char.name}</option>
               ))}
             </select>
           </div>
         </div>
         {selectedEntityIdToPlace && (
-            <p className="text-sm mt-2 dark:text-gray-300">Selected: <span className="font-bold">{selectedEntityIdToPlace} ({selectedEntityTypeToPlace})</span>. Click on the map to place.</p>
+            <p className="text-sm mt-2 dark:text-gray-300">Selected: <span className="font-bold">{getEntityNameById(selectedEntityIdToPlace, selectedEntityTypeToPlace!)} ({selectedEntityTypeToPlace})</span>. Click on the map to place.</p>
         )}
       </div>
 
+      {/* Contenitore scrollabile */}
       <div 
-        className="flex-grow relative border rounded-md overflow-hidden" 
-        ref={imageContainerRef} 
-        onClick={handleMapClick}
-        style={cursorImageUrl ? { cursor: `url(${cursorImageUrl}) 16 16, auto` } : { cursor: 'auto' }} // Applica lo stile del cursore
+        className="flex-grow relative border rounded-md overflow-auto bg-gray-200 dark:bg-gray-800"
+        ref={scrollContainerRef}
+        style={cursorImageUrl && naturalImageSize ? { cursor: `url(${cursorImageUrl}) 16 16, auto` } : { cursor: 'default' }}
       >
-        {locationImageUrl ? (
-          <img src={locationImageUrl} alt={`Background for ${locationId}`} className="w-full h-full object-contain" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gray-200 dark:bg-gray-800">
-            <p className="text-gray-500 dark:text-gray-400">No background image available for this location.</p>
-          </div>
-        )}
-        {/* Visualizza Oggetti Piazzati */}
-        {placedObjects.map((obj, index) => {
-          const itemEntity = allItems.find(i => i.name === obj.entityId);
-          const imgSrc = itemEntity?.details?.inventoryImageData || itemEntity?.details?.imageData || 'https://via.placeholder.com/30?text=I'; // Fallback
-          return (
-            <div
-              key={`obj-${obj.entityId}-${index}`} // L'index non è più strettamente necessario per la chiave se entityId è unico, ma lo teniamo per ora
-              title={`${getEntityNameById(obj.entityId, 'Item')} (Item)`}
-              className="absolute w-8 h-8 flex items-center justify-center text-xs cursor-pointer" // Rimosso bg-blue-500/70 border border-blue-700 rounded
-              style={{ left: `${obj.position.x}%`, top: `${obj.position.y}%`, transform: 'translate(-50%, -50%)' }}
-              onClick={(e) => { e.stopPropagation(); handleRemovePlacedEntity(obj.entityId, 'Item'); }}
-            >
-              {imgSrc && <img src={imgSrc} alt={obj.entityId} className="max-w-full max-h-full object-contain" />}
-              {!imgSrc && obj.entityId.substring(0,1)}
+        {/* Wrapper per contenuto a dimensione naturale, qui avviene il click */}
+        <div 
+          ref={contentWrapperRef} 
+          onClick={handleMapClick} 
+          className="relative"
+          style={naturalImageSize ? {
+            width: `${naturalImageSize.width}px`,
+            height: `${naturalImageSize.height}px`,
+            margin: 'auto', // Centra se il contenitore scrollabile è più grande
+          } : {
+            width: '100%', 
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          {locationImageUrl && naturalImageSize ? (
+            <img 
+              src={locationImageUrl} 
+              alt={`Background for ${locationId}`}
+              style={{
+                display: 'block',
+                width: `${naturalImageSize.width}px`,
+                height: `${naturalImageSize.height}px`,
+                // No object-fit, vogliamo dimensioni naturali
+              }}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <p className="text-gray-500 dark:text-gray-400">
+                {locationImageUrl ? 'Loading background...' : 'No background image available.'}
+              </p>
             </div>
-          );
-        })}
-        {/* Visualizza Personaggi Piazzati */}
-        {placedCharacters.map((char, index) => {
-          const charEntity = allCharacters.find(c => c.name === char.entityId);
-          // const imgSrc = charEntity?.details?.mapSprite || 'https://via.placeholder.com/30?text=C'; 
-          return (
-            <div
-              key={`char-${char.entityId}-${index}`} // L'index non è più strettamente necessario
-              title={`${getEntityNameById(char.entityId, 'Character')} (Character)`}
-              className="absolute w-8 h-8 flex items-center justify-center text-xs cursor-pointer" // Rimosso bg-green-500/70 border border-green-700 rounded-full
-              style={{ left: `${char.position.x}%`, top: `${char.position.y}%`, transform: 'translate(-50%, -50%)' }}
-              onClick={(e) => { e.stopPropagation(); handleRemovePlacedEntity(char.entityId, 'Character'); }}
-            >
-              {/* Se hai un'immagine per il personaggio, visualizzala qui */}
-              {/* Esempio: charEntity?.details?.mapSprite ? <img src={charEntity.details.mapSprite} ... /> : char.entityId.substring(0,1) */}
-              {char.entityId.substring(0,1)} 
-            </div>
-          );
-        })}
+          )}
+
+          {/* Oggetti e Personaggi Piazzati (usano position:absolute relative a questo div) */}
+          {naturalImageSize && placedObjects.map((obj, index) => {
+            const itemEntity = allItems.find(i => i.id === obj.entityId);
+            const imgSrc = itemEntity?.details?.inventoryImageData || itemEntity?.details?.imageData || 'https://via.placeholder.com/30?text=I';
+            return (
+              <div
+                key={`obj-${obj.entityId}-${index}`}
+                title={`${itemEntity?.name || 'Unknown Item'} (Item)`}
+                className="absolute w-8 h-8 flex items-center justify-center text-xs cursor-pointer bg-black bg-opacity-20 hover:bg-opacity-50 rounded"
+                style={{ left: `${obj.position.x}%`, top: `${obj.position.y}%`, transform: 'translate(-50%, -50%)' }}
+                onClick={(e) => { e.stopPropagation(); handleRemovePlacedEntity(obj.entityId, 'Item'); }}
+              >
+                {imgSrc && <img src={imgSrc} alt={itemEntity?.name || obj.entityId} className="max-w-full max-h-full object-contain pointer-events-none" />}
+                {!imgSrc && (itemEntity?.name || obj.entityId).substring(0,1)}
+              </div>
+            );
+          })}
+          {naturalImageSize && placedCharacters.map((char, index) => {
+            const charEntity = allCharacters.find(c => c.id === char.entityId);
+            return (
+              <div
+                key={`char-${char.entityId}-${index}`}
+                title={`${charEntity?.name || 'Unknown Character'} (Character)`}
+                className="absolute w-8 h-8 flex items-center justify-center text-xs cursor-pointer bg-black bg-opacity-20 hover:bg-opacity-50 rounded"
+                style={{ left: `${char.position.x}%`, top: `${char.position.y}%`, transform: 'translate(-50%, -50%)' }}
+                onClick={(e) => { e.stopPropagation(); handleRemovePlacedEntity(char.entityId, 'Character'); }}
+              >
+                {(charEntity?.details as any)?.mapSprite && charEntity ? 
+                  <img src={(charEntity.details as any).mapSprite} alt={charEntity.name} className="max-w-full max-h-full object-contain pointer-events-none" /> : 
+                  (charEntity?.name || char.entityId).substring(0,1)
+                } 
+              </div>
+            );
+          })}
+        </div>
       </div>
       <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-        Click on an item/character icon on the map to remove it. Coordinates are saved as percentages.
+        Click on an item/character icon on the map to remove it. Coordinates are saved as percentages of the natural image size.
       </div>
     </div>
   );

@@ -1,3 +1,5 @@
+import { v4 as uuidv4 } from 'uuid';
+
 // Definizione della posizione assoluta di un elemento nel diagramma
 // Questa interfaccia viene usata per tracciare la posizione esatta di un nodo
 export interface Position {
@@ -74,6 +76,7 @@ export interface Position {
 export type EntityType = 'Character' | 'Item' | 'Location';
 
 export interface Entity {
+  id: string;
   type: EntityType;
   name: string;
   internal: boolean;
@@ -156,6 +159,18 @@ export type AnyEntity = LocationEntity | CharacterEntity | ItemEntity;
 
 export const PREDEFINED_ENTITIES: AnyEntity[] = [ // Usiamo AnyEntity[] per maggiore specificità
   {
+    id: 'main_character_guid', // ID GUID fisso per MAIN_CHARACTER
+    type: 'Character',
+    name: 'MAIN_CHARACTER',
+    internal: false,
+    details: {
+      description: 'The main player character.',
+      inventory: [],
+      dialogueTree: undefined,
+    }
+  },
+  {
+    id: uuidv4(),
     type: 'Character',
     name: 'SOMEONE',
     internal: true,
@@ -165,6 +180,7 @@ export const PREDEFINED_ENTITIES: AnyEntity[] = [ // Usiamo AnyEntity[] per magg
     }
   },
   {
+    id: uuidv4(),
     type: 'Item',
     name: 'NOTHING',
     internal: true,
@@ -177,6 +193,7 @@ export const PREDEFINED_ENTITIES: AnyEntity[] = [ // Usiamo AnyEntity[] per magg
     }
   },
   {
+    id: uuidv4(),
     type: 'Item',
     name: 'SOMETHING',
     internal: true,
@@ -188,6 +205,7 @@ export const PREDEFINED_ENTITIES: AnyEntity[] = [ // Usiamo AnyEntity[] per magg
     }
   },
   {
+    id: uuidv4(),
     type: 'Location',
     name: 'EVERYWHERE',
     internal: true,

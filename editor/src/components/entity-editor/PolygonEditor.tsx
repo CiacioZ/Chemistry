@@ -83,13 +83,12 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
 
   const persistChangesToContext = useCallback(() => {
     const updatedEntities = entities.map(entity => {
-      if (entity.type === 'Location' && entity.name === locationId) {
-        // Cast to LocationEntity to safely access details
+      if (entity.type === 'Location' && entity.id === locationId) {
         const locEntity = entity as LocationEntity;
         return {
           ...locEntity,
           details: {
-            ...(locEntity.details || {}), // Ensure details is an object before spreading
+            ...(locEntity.details || {}),
             backgroundImage: imageUrl,
             walkableAreas: polygons,
           },
@@ -190,7 +189,7 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
     }
 
     return null;
-  }, [imageSize]); // Dipende solo da imageSize e dalla funzione di scala (i dati dei poligoni li legge dai ref)
+  }, [imageSize]);
 
 
   // --- NUOVA FUNZIONE: Trova un lato vicino a un punto del canvas ---
@@ -251,32 +250,55 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
 
   // Disegna sul canvas
   const draw = useCallback(() => {
-    if (!canvasRef.current || !imageRef.current || !imageSize) return;
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const imageElement = imageRef.current; // Riferimento all'elemento <img>
 
-    const imageElement = imageRef.current;
-    // Adatta dimensioni canvas a quelle visualizzate dell'immagine
-    const displayedWidth = imageElement.clientWidth;
-    const displayedHeight = imageElement.clientHeight;
-
-    // Evita di disegnare su un canvas di dimensione zero
-    if (displayedWidth === 0 || displayedHeight === 0) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height); // Pulisci comunque
-        return;
+    if (!canvas || !imageElement || !imageSize || !imageUrl) { // Assicurati che anche imageUrl sia presente
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          // Pulisci e disegna un placeholder se non c'è immagine
+          canvas.width = canvas.parentElement?.clientWidth || 300; // Fallback a larghezza parente o default
+          canvas.height = canvas.parentElement?.clientHeight || 200; // Fallback a altezza parente o default
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = '#e0e0e0';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = '#666';
+          ctx.textAlign = 'center';
+          ctx.fillText('Image not loaded', canvas.width / 2, canvas.height / 2);
+        }
+      }
+      return;
     }
 
-    canvas.width = displayedWidth;
-    canvas.height = displayedHeight;
+    // Imposta le dimensioni del buffer del canvas alle dimensioni naturali dell'immagine
+    canvas.width = imageSize.width;
+    canvas.height = imageSize.height;
 
+    // Imposta esplicitamente le dimensioni di visualizzazione dell'elemento <img>
+    // alle sue dimensioni naturali. Questo assicura che imageElement.clientWidth/Height
+    // corrispondano a imageSize.width/height.
+    imageElement.style.width = `${imageSize.width}px`;
+    imageElement.style.height = `${imageSize.height}px`;
+    
+    // Il canvas stesso (elemento HTML) dovrebbe anche avere stili CSS che corrispondono
+    // per evitare distorsioni se il CSS lo sta scalando diversamente dal suo buffer.
+    // Dato che è position:absolute e il suo parente è dimensionato con imageSize,
+    // non dovrebbe essere necessario impostare qui gli stili width/height del canvas,
+    // ma per sicurezza lo facciamo.
+    canvas.style.width = `${imageSize.width}px`;
+    canvas.style.height = `${imageSize.height}px`;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
     // Pulisci canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Scala per disegnare (da coordinate naturali a coordinate canvas visualizzate)
-    const scaleX = canvas.width / imageSize.width;
-    const scaleY = canvas.height / imageSize.height;
+    // Dato che il canvas ora ha le stesse dimensioni dell'immagine naturale,
+    // la scala è 1. Disegniamo direttamente con le coordinate naturali.
+    const scaleX = 1; // canvas.width / imageSize.width;
+    const scaleY = 1; // canvas.height / imageSize.height;
 
     // Funzione helper per disegnare i vertici
     const drawVertex = (vertex: Point, color: string, radius: number, isHovered: boolean, isDragging: boolean) => {
@@ -351,13 +373,15 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
 
   // Effetto per caricare l'immagine e impostare le dimensioni
   const handleImageLoad = useCallback(() => {
-    if (imageRef.current) {
-      setImageSize({ width: imageRef.current.naturalWidth, height: imageRef.current.naturalHeight });
-      // Forza ridisegno dopo caricamento immagine (richiederà che draw abbia imageSize)
-      // La dependency array di draw include imageSize, quindi useEffect chiamerà draw
-      // Alternativa: requestAnimationFrame(draw); ma useEffect è più reattivo ai cambiamenti di stato/dipendenze
+    const img = imageRef.current;
+    if (img && img.naturalWidth > 0 && img.naturalHeight > 0) {
+      setImageSize({ width: img.naturalWidth, height: img.naturalHeight });
+    } else {
+      setImageSize(null);
+      // Consider also clearing imageUrl if the image is invalid/missing
+      // setImageUrl(null); 
     }
-  }, []); // Nessuna dipendenza
+  }, []); // No dependencies needed here if not calling setImageUrl directly
 
    // Gestione resize finestra per ridisegnare
    useEffect(() => {
@@ -623,6 +647,40 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
        }
    };
 
+  const handleCanvasMouseUp = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (draggingVertexInfoRef.current) {
+      // Potentially snap vertex to a grid or perform other actions on drag end
+    }
+    setDraggingVertexInfo(null); // Termina sempre il trascinamento
+    // Potrebbe essere necessario ridisegnare se lo stato visivo dipende da draggingVertexInfo
+    // draw(); // Se draw è una funzione useCallback che puoi chiamare qui
+  }, []); // Aggiungere dipendenze se necessario (es. setDraggingVertexInfo)
+
+  const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (e.button !== 0) return; // Gestisci solo click sinistro
+
+    const naturalCoords = getNaturalCoordinates(e);
+    if (!naturalCoords) return;
+
+    if (isDrawing) {
+      // Aggiungi punto al poligono corrente
+      setCurrentPolygon(prev => [...prev, naturalCoords]);
+    } else {
+      // Logica per selezionare poligoni o vertici, o iniziare a disegnare un nuovo poligono
+      // console.log("Canvas clicked at:", naturalCoords);
+    }
+    // draw(); // Potrebbe essere necessario ridisegnare
+  }, [isDrawing, getNaturalCoordinates, setCurrentPolygon]); // Aggiungere dipendenze
+
+  const handleCanvasContextMenu = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    e.preventDefault(); // Impedisce il menu contestuale del browser
+    // console.log("Canvas context menu triggered");
+    // Qui potrebbe andare la logica per finire un poligono, eliminare un vertice, ecc.
+    if (isDrawing && currentPolygonRef.current.length >= 3) {
+      // Esempio: finisci il poligono con il tasto destro
+      // handleFinishDrawing(); // Assicurati che handleFinishDrawing sia definito e useCallback
+    }
+  }, [isDrawing]); // Aggiungere dipendenze se necessario
 
   return (
     <div className="flex flex-col h-full">
@@ -707,72 +765,68 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
       </div>
 
       {/* Area Immagine e Canvas */}
-      <div className="flex-grow relative border rounded overflow-hidden bg-gray-200 dark:bg-gray-700 flex items-center justify-center"> {/* Aggiunto flex center per messaggio immagine mancante */}
-        {imageUrl ? (
-          <>
-            {/* Immagine di sfondo */}
+      <div 
+        className="flex-grow relative border rounded overflow-auto bg-gray-100 dark:bg-gray-900"
+        // This outer div provides scrolling
+      >
+        {/* This inner div is positioned relatively and sized to the image's natural dimensions */}
+        <div
+          className="relative" // Ensures children with position:absolute are relative to this
+          style={imageSize ? {
+            width: `${imageSize.width}px`,
+            height: `${imageSize.height}px`,
+            margin: 'auto' // Centers the content if scroll container is larger
+          } : {
+            // Placeholder style if no image/imageSize yet
+            width: '100%', 
+            height: '100%', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center'
+          }}
+        >
+          {imageUrl ? (
             <img
               ref={imageRef}
               src={imageUrl}
               alt="Location background"
               onLoad={handleImageLoad}
-              // Gestione errori di caricamento immagine
-              onError={(e) => {
-                  console.error("Errore caricamento immagine:", e);
-                  alert("Impossibile caricare l'immagine.");
-                  setImageUrl(null); // Rimuovi l'URL se non carica
-                  setPolygons([]);
-                  setCurrentPolygon([]);
-                  setIsDrawing(false);
-                  setImageSize(null);
-                  setIsUploading(false); // Assicurati che lo stato upload si resetti
-                  setHoveredVertexInfo(null); // Resetta stato hover
-                  setDraggingVertexInfo(null); // Resetta stato drag
+              onError={() => {
+                setImageSize(null); setImageUrl(null); /* Handle error */
               }}
-              className="absolute top-0 left-0 w-full h-full object-contain pointer-events-none" // object-contain e pointer-events-none
-              style={{ zIndex: 1 }}
+              style={{
+                display: 'block', // Initial display, controlled further in useEffect
+                position: 'absolute', // Positioned within the sized inner div
+                top: 0,
+                left: 0,
+                // width & height styles are set in useEffect based on natural dimensions
+              }}
+              // NO Tailwind size restricting classes like max-w-full, max-h-full, object-contain
             />
-            {/* Canvas per disegno */}
-            {imageSize && !isUploading ? ( // Mostra canvas solo se immagine caricata e size disponibile, e non in upload
-                <canvas
-                  ref={canvasRef}
-                  className="absolute top-0 left-0 w-full h-full"
-                  style={{ zIndex: 2, cursor: draggingVertexInfo ? 'grabbing' : (hoveredVertexInfo ? 'grab' : (isDrawing ? 'crosshair' : 'crosshair')) }} // Cambia cursore
-                  onMouseDown={handleCanvasMouseDown}
-                  onMouseMove={handleCanvasMouseMove}
-                  onMouseLeave={handleCanvasMouseLeave}
-                  // Rimossa la prop onDoubleClick
-                />
-             ) : (
-                 // Placeholder mentre l'immagine carica o size non disponibile
-                  <div className="text-gray-500 dark:text-gray-400">
-                    Loading image...
-                  </div>
-             )}
-
-             {/* Messaggio suggerimento per chiudere poligono */}
-             {isDrawing && currentPolygon.length >= 3 && !isUploading && !draggingVertexInfo && (
-                <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded z-10 pointer-events-none">
-                    Click points or use "Finish Polygon" button.
-                </div>
-             )}
-              {isDrawing && currentPolygon.length > 0 && currentPolygon.length < 3 && !isUploading && !draggingVertexInfo && (
-                <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded z-10 pointer-events-none">
-                    Add {3 - currentPolygon.length} more point(s) to finish. Use "Cancel Current" button to abort.
-                </div>
-             )}
-
-             {isUploading && (
-                 <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20">
-                    <span className="text-white text-lg">Uploading image...</span>
-                 </div>
-             )}
-          </>
-        ) : (
-          <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
-            Load an image to start drawing polygons.
-          </div>
-        )}
+          ) : (
+            <div className="text-gray-500 dark:text-gray-400">
+              Please upload an image.
+            </div>
+          )}
+          {/* Canvas for drawing, also positioned absolutely to overlay the image */}
+          <canvas
+            ref={canvasRef}
+            onMouseDown={handleCanvasMouseDown}
+            onMouseMove={handleCanvasMouseMove}
+            onMouseUp={handleCanvasMouseUp} // Ensure this handler exists
+            onMouseLeave={handleCanvasMouseLeave}
+            onClick={handleCanvasClick} // Ensure this handler exists
+            onContextMenu={handleCanvasContextMenu} // Ensure this handler exists
+            style={{
+              position: 'absolute', // Overlays the image
+              top: 0,
+              left: 0,
+              // width & height styles AND attributes are set in useEffect
+              cursor: isDrawing ? 'crosshair' : (draggingVertexInfo ? 'grabbing' : 'default'),
+              // backgroundColor: 'rgba(0,255,0,0.1)' // For debugging canvas position
+            }}
+          />
+        </div>
       </div>
     </div>
   );

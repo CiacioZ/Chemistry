@@ -1,10 +1,11 @@
 import React from 'react';
 import { Edit2, Trash2 } from 'lucide-react';
-import { Node } from '../types';
+import { Node, Entity, ActionNode } from '../types/index';
 import { ConnectionPoint } from './ConnectionPoint';
 
 interface DiagramNodeProps {
   node: Node;
+  entities: Entity[];
   onMouseDown: (e: React.MouseEvent, nodeId: string) => void;
   onEdit: (nodeId: string) => void;
   onDelete: (nodeId: string) => void;
@@ -15,6 +16,7 @@ interface DiagramNodeProps {
 
 export const DiagramNode: React.FC<DiagramNodeProps> = ({
   node,
+  entities,
   onMouseDown,
   onEdit,
   onDelete,
@@ -22,39 +24,47 @@ export const DiagramNode: React.FC<DiagramNodeProps> = ({
   onEndConnection,
   isConnecting
 }) => {
-  const renderActionContent = (node: Node) => {
-    if (node.type !== 'action') return null;
-    
+
+  const getEntityNameById = (id: string | undefined | null): string => {
+    if (!id) return '';
+    const predefined = entities.find(e => e.name === id && e.internal);
+    if (predefined) return predefined.name; 
+
+    const entity = entities.find(e => e.id === id);
+    return entity ? entity.name : (id || 'Unknown');
+  };
+
+  const renderActionContent = (actionNode: ActionNode) => {
     return (
       <div className="space-y-1 text-sm">
-        {node.from && (
+        {actionNode.from && (
           <div className="flex">
             <span className="font-medium w-16 text-gray-500">From:</span>
-            <span className="text-gray-700">{node.from}</span>
+            <span className="text-gray-700">{getEntityNameById(actionNode.from)}</span>
           </div>
         )}
-        {node.verb && (
+        {actionNode.verb && (
           <div className="flex">
             <span className="font-medium w-16 text-gray-500">Verb:</span>
-            <span className="text-gray-700">{node.verb}</span>
+            <span className="text-gray-700">{actionNode.verb}</span>
           </div>
         )}
-        {node.to && (
+        {actionNode.to && (
           <div className="flex">
             <span className="font-medium w-16 text-gray-500">To:</span>
-            <span className="text-gray-700">{node.to}</span>
+            <span className="text-gray-700">{getEntityNameById(actionNode.to)}</span>
           </div>
         )}
-        {node.with && (
+        {actionNode.with && (
           <div className="flex">
             <span className="font-medium w-16 text-gray-500">With:</span>
-            <span className="text-gray-700">{node.with}</span>
+            <span className="text-gray-700">{getEntityNameById(actionNode.with)}</span>
           </div>
         )}
-        {node.where && (
+        {actionNode.where && (
           <div className="flex">
             <span className="font-medium w-16 text-gray-500">Where:</span>
-            <span className="text-gray-700">{node.where}</span>
+            <span className="text-gray-700">{getEntityNameById(actionNode.where)}</span>
           </div>
         )}
       </div>
@@ -106,7 +116,7 @@ export const DiagramNode: React.FC<DiagramNodeProps> = ({
 
       {/* Content */}
       <div className="p-4">
-        {node.type === 'action' ? renderActionContent(node) : renderStateContent(node)}
+        {node.type === 'action' ? renderActionContent(node as ActionNode) : renderStateContent(node)}
       </div>
 
       {/* Connection Points */}
@@ -116,7 +126,7 @@ export const DiagramNode: React.FC<DiagramNodeProps> = ({
         onEndConnection={onEndConnection}
         isConnecting={isConnecting}
         position="right"
-        canConnect={!isConnecting} // il punto di output può essere usato solo per iniziare una connessione
+        canConnect={!isConnecting}
     />
     <ConnectionPoint
         nodeId={node.id}
@@ -124,7 +134,7 @@ export const DiagramNode: React.FC<DiagramNodeProps> = ({
         onEndConnection={onEndConnection}
         isConnecting={isConnecting}
         position="left"
-        canConnect={isConnecting} // il punto di input può essere usato solo per ricevere una connessione
+        canConnect={isConnecting}
     />
     </div>
   );

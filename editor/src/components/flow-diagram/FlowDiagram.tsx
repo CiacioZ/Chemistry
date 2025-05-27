@@ -9,7 +9,7 @@ import { DiagramToolbar } from './components/DiagramToolbar';
 import { useDiagramContext } from './contexts/DiagramContext';
 import { useDragAndDrop } from './hooks/useDragAndDrop';
 import { useNodePositions } from './hooks/useNodePositions';
-import { ConnectionDragState } from './types';
+import { ConnectionDragState, Entity } from './types/index';
 import { diagramOperations } from './services/diagramOperations';
 
 const FlowDiagram: React.FC = () => {
@@ -165,6 +165,7 @@ const FlowDiagram: React.FC = () => {
             <DiagramNode
               key={node.id}
               node={node}
+              entities={entities}
               onMouseDown={handleMouseDown}
               onEdit={setEditingNode}
               onDelete={(id) => pushNodes(diagramOperations.deleteNode(nodes, id))}
