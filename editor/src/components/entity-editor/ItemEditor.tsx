@@ -287,7 +287,6 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ imageUploadService }) =>
     // Utilizza imageUploadService se fornito, altrimenti simula come in CharacterEditor
     if (!imageUploadService) {
       console.warn("imageUploadService not available in ItemEditor for handleAddFrame. Simulating file input.");
-      // Fallback a un semplice input file se imageUploadService non c'è (come in CharacterEditor)
       const input = document.createElement('input');
       input.type = 'file';
       input.accept = 'image/*';
@@ -301,14 +300,16 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ imageUploadService }) =>
               imageData,
               duration: 100 // Default 100ms
             };
-            setFormData(prev => ({
-              ...prev,
-              animations: prev.animations?.map((anim, i) => 
+            setFormData(prev => {
+              const updatedAnimations = prev.animations?.map((anim, i) => 
                 i === animationIndex 
                   ? { ...anim, frames: [...anim.frames, newFrame] }
                   : anim
-              ) || []
-            }));
+              ) || [];
+              return { ...prev, animations: updatedAnimations };
+            });
+            setSelectedAnimationIndex(animationIndex); // Seleziona l'animazione a cui è stato aggiunto il frame
+            setSelectedFrameIndex(null); // Deseleziona qualsiasi frame precedentemente selezionato
           };
           reader.readAsDataURL(file);
         }
@@ -317,33 +318,34 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ imageUploadService }) =>
       return;
     }
 
-    // Se imageUploadService è disponibile, crea un input file e usa il servizio
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
-        setIsUploading(true); // Potresti voler uno stato di caricamento specifico per i frame
+        //setIsUploading(true); // Potresti voler uno stato di caricamento specifico per i frame
         try {
           const imageData = await imageUploadService(file);
           const newFrame: AnimationFrame = {
             imageData,
-            duration: 100 // Default 100ms
+            duration: 100
           };
-          setFormData(prev => ({
-            ...prev,
-            animations: prev.animations?.map((anim, i) => 
+          setFormData(prev => {
+            const updatedAnimations = prev.animations?.map((anim, i) => 
               i === animationIndex 
                 ? { ...anim, frames: [...anim.frames, newFrame] }
                 : anim
-            ) || []
-          }));
+            ) || [];
+            return { ...prev, animations: updatedAnimations };
+          });
+          setSelectedAnimationIndex(animationIndex); // Seleziona l'animazione a cui è stato aggiunto il frame
+          setSelectedFrameIndex(null); // Deseleziona qualsiasi frame precedentemente selezionato
         } catch (error) {
           console.error("Error uploading frame image:", error);
           alert("Errore durante il caricamento dell'immagine del frame.");
         } finally {
-          setIsUploading(false);
+          //setIsUploading(false);
         }
       }
     };
@@ -636,68 +638,136 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ imageUploadService }) =>
 
                 {(formData.animations && formData.animations.length > 0) ? (
                   formData.animations.map((animation, animIndex) => (
-                    <div key={animIndex} className="border rounded p-3 mb-3 bg-gray-50 dark:bg-gray-700/60">
+                    <div 
+                      key={animIndex} 
+                      className={`border rounded p-3 mb-3 ${selectedAnimationIndex === animIndex ? 'bg-blue-100 dark:bg-blue-700 ring-2 ring-blue-500' : 'bg-gray-50 dark:bg-gray-700/60 hover:bg-gray-100 dark:hover:bg-gray-600'}`}
+                    >
                       <div className="flex justify-between items-center mb-2">
                         <input
                           type="text"
                           value={animation.name}
-                          onChange={(e) => handleAnimationNameChange(animIndex, e.target.value)}
-                          className="font-medium bg-transparent border-b border-gray-400 dark:border-gray-500 focus:outline-none focus:border-blue-500 dark:text-white"
+                          onClick={(e) => { // Allow clicking the input to select the animation
+                            e.stopPropagation();
+                            setSelectedAnimationIndex(animIndex);
+                            setSelectedFrameIndex(null);
+                          }}
+                          onChange={(e) => {
+                            e.stopPropagation(); 
+                            handleAnimationNameChange(animIndex, e.target.value);
+                          }}
+                          className="font-medium bg-transparent border-b border-gray-400 dark:border-gray-500 focus:outline-none focus:border-blue-500 dark:text-white w-full mr-2 cursor-text"
                           placeholder="Nome Animazione"
                         />
+                        <div 
+                          onClick={() => { // Make the general area clickable to select animation
+                              setSelectedAnimationIndex(animIndex);
+                              setSelectedFrameIndex(null);
+                          }}
+                          className="flex-grow h-full cursor-pointer" // Invisible clickable area
+                        ></div>
                         <button
                           type="button"
-                          onClick={() => handleDeleteAnimation(animIndex)}
-                          className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 text-sm p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-700/30"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteAnimation(animIndex);
+                          }}
+                          className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 text-sm p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-700/30 ml-2" // Added ml-2 for spacing
                           title="Elimina Animazione"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
                       </div>
 
-                      <div className="mb-2">
+                      <div className="mb-2 mt-1">
                         <button
                           type="button"
-                          onClick={() => handleAddFrame(animIndex)}
+                          onClick={(e) => {
+                            e.stopPropagation(); 
+                            handleAddFrame(animIndex);
+                            setSelectedAnimationIndex(animIndex); // Ensure this animation remains selected
+                          }}
                           className="px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-xs"
                         >
                           + Aggiungi Frame
                         </button>
                       </div>
-
-                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-                        {animation.frames.map((frame, frameIndex) => (
-                          <div key={frameIndex} className="relative border rounded p-2 bg-white dark:bg-gray-800 aspect-square flex flex-col justify-between">
-                            <img
-                              src={frame.imageData}
-                              alt={`Frame ${frameIndex + 1}`}
-                              className="w-full h-auto object-contain rounded mb-1 max-h-20 mx-auto"
-                            />
-                            <div className="flex items-center justify-between text-xs mt-1">
-                              <input
-                                type="number"
-                                value={frame.duration || 100}
-                                onChange={(e) => handleFrameDurationChange(animIndex, frameIndex, parseInt(e.target.value))}
-                                className="w-14 px-1 py-0.5 border rounded text-xs dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                min="1"
-                              />
-                              <span className="text-gray-500 dark:text-gray-400 ml-1">ms</span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteFrame(animIndex, frameIndex)}
-                              className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs hover:bg-red-600"
-                              style={{ transform: 'translate(30%, -30%)' }}
-                              title="Elimina Frame"
+                      
+                      {/* Inline Frame Grid */}
+                      {animation.frames.length > 0 ? (
+                        <div 
+                            className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-1 mt-2 p-1 rounded bg-gray-100 dark:bg-gray-700/50"
+                            onClick={(e) => e.stopPropagation()} // Prevent clicks on grid background from deselecting animation unless a frame is clicked
+                        >
+                          {animation.frames.map((frame, frameIndex) => (
+                            <div 
+                              key={frameIndex} 
+                              className={`relative border rounded p-1 flex flex-col items-center shadow-sm hover:shadow-md transition-shadow cursor-pointer
+                                          ${selectedAnimationIndex === animIndex && selectedFrameIndex === frameIndex ? 'ring-2 ring-indigo-500 bg-indigo-100 dark:bg-indigo-800/50' : 'bg-white dark:bg-gray-600 hover:bg-gray-50 dark:hover:bg-gray-500/50'}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedAnimationIndex(animIndex);
+                                setSelectedFrameIndex(frameIndex);
+                              }}
                             >
-                              ×
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-
-                      {animation.frames.length === 0 && (
-                        <p className="text-gray-500 dark:text-gray-400 text-sm italic">Nessun frame aggiunto a questa animazione.</p>
+                              <div className="w-20 h-20 bg-gray-200 dark:bg-gray-500 rounded mb-1 flex items-center justify-center overflow-hidden">
+                                <img 
+                                  src={frame.imageData} 
+                                  alt={`Frame ${frameIndex + 1}`} 
+                                  className="w-full h-full object-contain"
+                                  onError={(e) => {
+                                      const target = e.currentTarget as HTMLImageElement;
+                                      target.style.display = 'none';
+                                      const parent = target.parentElement;
+                                      if (parent && !parent.querySelector('.frame-img-error')) {
+                                          const errorMsg = document.createElement('span');
+                                          errorMsg.textContent = 'Err';
+                                          errorMsg.className = 'frame-img-error text-[10px] text-red-500';
+                                          parent.appendChild(errorMsg);
+                                      }
+                                  }}
+                                  onLoad={(e) => {
+                                      const target = e.currentTarget as HTMLImageElement;
+                                      target.style.display = 'block';
+                                      const parent = target.parentElement;
+                                      const errorMsg = parent?.querySelector('.frame-img-error');
+                                      if (errorMsg) errorMsg.remove();
+                                  }}
+                                />
+                              </div>
+                              <div className="flex items-center my-0.5">
+                                <input
+                                  type="number"
+                                  value={frame.duration}
+                                  onChange={(e) => {
+                                    e.stopPropagation();
+                                    handleFrameDurationChange(animIndex, frameIndex, parseInt(e.target.value, 10));
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="w-12 text-center px-0.5 py-0 border border-gray-300 dark:border-gray-500 rounded text-xs dark:bg-gray-700 dark:text-white focus:ring-indigo-500 focus:border-indigo-500"
+                                  min="1"
+                                />
+                                <span className="text-xs text-gray-500 dark:text-gray-400 ml-0.5">ms</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteFrame(animIndex, frameIndex);
+                                }}
+                                className="absolute top-0 right-0 text-red-500 hover:text-red-600 dark:text-red-300 dark:hover:text-red-200 p-0.5 rounded-full hover:bg-red-100 dark:hover:bg-red-700/40 focus:outline-none"
+                                title="Delete Frame"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.8" stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div onClick={(e) => e.stopPropagation()} className="cursor-default">
+                           <p className="text-gray-500 dark:text-gray-400 text-xs italic mt-2 py-1 px-2 rounded bg-gray-100 dark:bg-gray-700/50 text-center">
+                            Nessun frame. Clicca "+ Aggiungi Frame".
+                          </p>
+                        </div>
                       )}
                     </div>
                   ))

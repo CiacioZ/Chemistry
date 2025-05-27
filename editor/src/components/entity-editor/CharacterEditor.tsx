@@ -388,29 +388,28 @@ export const CharacterEditor: React.FC = () => {
                     </button>
                   </div>
                   
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-6 gap-2">
                     {animation.frames.map((frame, frameIndex) => (
-                      <div key={frameIndex} className="relative border rounded p-2 bg-white dark:bg-gray-800">
+                      <div key={frameIndex} className="relative border rounded p-1 bg-white dark:bg-gray-800 flex flex-col items-center">
                         <img
                           src={frame.imageData}
                           alt={`Frame ${frameIndex + 1}`}
-                          className="w-full h-16 object-cover rounded mb-1"
+                          className="w-20 h-20 object-contain bg-gray-100 dark:bg-gray-700 rounded mb-1"
                         />
-                        <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center justify-between text-xs mt-1 w-full">
                           <input
                             type="number"
                             value={frame.duration || 100}
                             onChange={(e) => handleFrameDurationChange(animIndex, frameIndex, parseInt(e.target.value))}
-                            className="w-12 px-1 py-0.5 border rounded text-xs"
+                            className="w-16 px-1 py-0.5 border rounded text-xs dark:bg-gray-600 dark:border-gray-500 dark:text-white text-center"
                             min="1"
                           />
-                          <span className="text-gray-500">ms</span>
+                          <span className="text-gray-500 dark:text-gray-400 ml-1">ms</span>
                         </div>
                         <button
                           type="button"
                           onClick={() => handleDeleteFrame(animIndex, frameIndex)}
-                          className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs hover:bg-red-600"
-                          style={{ transform: 'translate(25%, -25%)' }}
+                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs hover:bg-red-600"
                         >
                           ×
                         </button>
