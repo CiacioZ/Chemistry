@@ -554,24 +554,77 @@ func (g *Game) drawCharacter(screen *ebiten.Image, character model.Character) {
 }
 
 func (g *Game) drawItem(screen *ebiten.Image, item model.Item, itemLocation model.ItemLocation) {
-	// TODO: Implementa il caricamento e il disegno dell'immagine dell'oggetto
-	// Per ora, disegniamo un placeholder
-	if len(item.Image) == 0 {
-		vector.DrawFilledCircle(screen, float32(itemLocation.LocationPoint.X), float32(itemLocation.LocationPoint.Y), 3, color.RGBA{255, 0, 0, 255}, false)
-	} else {
-		itemImage, _, err := image.Decode(bytes.NewReader(item.Image))
-		if err != nil {
-			log.Fatal(err)
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(float64(itemLocation.LocationPoint.X), float64(itemLocation.LocationPoint.Y))
+
+	if len(item.Animations) > 0 {
+		// Determine which animation to play (e.g., "IDLE" or the first one)
+		var currentAnimationName string
+		for animName := range item.Animations {
+			currentAnimationName = animName // Get the first animation name
+			break
 		}
 
-		img := ebiten.NewImageFromImage(itemImage)
-		op := &ebiten.DrawImageOptions{}
-		op.GeoM.Translate(float64(itemLocation.LocationPoint.X), float64(itemLocation.LocationPoint.Y))
+		if currentAnimationName != "" {
+			animationFrames := item.Animations[currentAnimationName]
+			if len(animationFrames) > 0 {
+				// Simple animation timer/frame logic
+				// We need a way to store current frame index for each item instance.
+				// For now, using a global or a game state map.
+				// This is a simplified example and might need a more robust solution
+				// for managing animation states of multiple items.
 
-		screen.DrawImage(img, op)
+				// Placeholder: use game time to cycle frames.
+				// This will make all animated items animate in sync.
+				frameIndex := int(time.Now().UnixNano()/100000000) % len(animationFrames)
+				frameData := animationFrames[frameIndex]
+
+				if len(frameData) > 0 {
+					itemImage, _, err := image.Decode(bytes.NewReader(frameData))
+					if err != nil {
+						log.Printf("Error decoding item animation frame: %v", err)
+						// Draw placeholder if frame decode fails
+						vector.DrawFilledCircle(screen, float32(itemLocation.LocationPoint.X)+10, float32(itemLocation.LocationPoint.Y)+10, 5, color.RGBA{255, 0, 255, 255}, false)
+						return
+					}
+					img := ebiten.NewImageFromImage(itemImage)
+					screen.DrawImage(img, op)
+				} else {
+					// Draw placeholder if frame data is empty
+					vector.DrawFilledCircle(screen, float32(itemLocation.LocationPoint.X)+10, float32(itemLocation.LocationPoint.Y)+10, 5, color.RGBA{0, 0, 255, 255}, false)
+				}
+			} else {
+				// Draw placeholder if animation has no frames
+				vector.DrawFilledCircle(screen, float32(itemLocation.LocationPoint.X)+10, float32(itemLocation.LocationPoint.Y)+10, 5, color.RGBA{0, 255, 0, 255}, false)
+			}
+		} else {
+			// Fallback to static image or placeholder if no animation name found (should not happen if map is not empty)
+			drawStaticItemImage(screen, item, itemLocation, op)
+		}
+	} else {
+		// Fallback to static image or placeholder if no animations defined
+		drawStaticItemImage(screen, item, itemLocation, op)
 	}
 
+	// Keep drawing interaction point for debugging or gameplay
 	vector.DrawFilledCircle(screen, float32(itemLocation.InteractionPoint.X), float32(itemLocation.InteractionPoint.Y), 2, color.RGBA{0, 255, 0, 255}, false)
+}
+
+// Helper function to draw static item image or placeholder
+func drawStaticItemImage(screen *ebiten.Image, item model.Item, itemLocation model.ItemLocation, op *ebiten.DrawImageOptions) {
+	if len(item.Image) > 0 {
+		itemImage, _, err := image.Decode(bytes.NewReader(item.Image))
+		if err != nil {
+			log.Printf("Error decoding item static image: %v", err)
+			vector.DrawFilledCircle(screen, float32(itemLocation.LocationPoint.X)+10, float32(itemLocation.LocationPoint.Y)+10, 3, color.RGBA{255, 0, 0, 255}, false) // Placeholder on error
+			return
+		}
+		img := ebiten.NewImageFromImage(itemImage)
+		screen.DrawImage(img, op)
+	} else {
+		// Placeholder if no static image and no animations
+		vector.DrawFilledCircle(screen, float32(itemLocation.LocationPoint.X)+10, float32(itemLocation.LocationPoint.Y)+10, 3, color.RGBA{255, 0, 0, 255}, false)
+	}
 }
 
 func (g *Game) drawUI(screen *ebiten.Image) {

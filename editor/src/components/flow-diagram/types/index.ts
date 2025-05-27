@@ -108,7 +108,7 @@ export interface ItemDetails {
   useWith: boolean;
   imageData?: string;
   inventoryImageData?: string;
-  animations?: { [id: string] : string ; }
+  animations?: Animation[]; // Changed to use Animation interface array
 }
 
 // Aggiunta: Tipo unione per tutti i dettagli delle entità

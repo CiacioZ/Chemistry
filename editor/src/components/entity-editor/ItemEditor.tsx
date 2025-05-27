@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'; // Added useRef, useCallback
 import { useDiagramContext } from '../flow-diagram/contexts/DiagramContext';
-import { Entity, ItemEntity } from '../flow-diagram/types/index'; // Aggiunto ItemEntity
+import { Entity, ItemEntity, Animation, AnimationFrame } from '../flow-diagram/types/index'; // Aggiunto ItemEntity, Animation, AnimationFrame
 
 // TODO: Definire un'interfaccia basata sulla struct model.Item di Go
 interface ItemData {
@@ -12,6 +12,7 @@ interface ItemData {
   imageData?: string;
   canBePickedUp?: boolean; // Aggiunto campo per il flag
   inventoryImageData?: string; // Aggiunto campo per l'immagine dell'inventario
+  animations: Animation[]; // Added animations
 }
 
 interface ItemEditorProps { // Aggiunta interfaccia Props
@@ -30,6 +31,9 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ imageUploadService }) =>
   const [formData, setFormData] = useState<Partial<ItemData>>({});
   const [isUploading, setIsUploading] = useState<boolean>(false); // Stato per il caricamento imageData
   const [isUploadingInventory, setIsUploadingInventory] = useState<boolean>(false); // Stato per il caricamento inventoryImageData
+
+  const [selectedAnimationIndex, setSelectedAnimationIndex] = useState<number | null>(null);
+  const [selectedFrameIndex, setSelectedFrameIndex] = useState<number | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null); // Ref per l'input file imageData
   const imageRef = useRef<HTMLImageElement>(null); // Ref per l'immagine imageData (opzionale, per forzare il reload)
@@ -51,6 +55,7 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ imageUploadService }) =>
           imageData: selectedEntity.details?.imageData || '',
           canBePickedUp: selectedEntity.details?.canBePickedUp || false,
           inventoryImageData: selectedEntity.details?.inventoryImageData || '',
+          animations: selectedEntity.details?.animations || [], // Load animations
         });
       } else {
         setSelectedItemId(null); // Item non trovato, deseleziona
@@ -104,6 +109,7 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ imageUploadService }) =>
             imageData: formData.imageData || '',
             canBePickedUp: formData.canBePickedUp || false,
             inventoryImageData: formData.inventoryImageData || '',
+            animations: formData.animations || [], // Save animations
           },
         };
       }
@@ -234,6 +240,143 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ imageUploadService }) =>
     // L'useEffect che osserva formData gestirà il salvataggio.
   };
 
+  // Funzioni per gestire le animazioni (adattate da CharacterEditor)
+  const handleAddAnimation = () => {
+    const newAnimation: Animation = {
+      name: `Animation ${(formData.animations?.length || 0) + 1}`,
+      frames: [],
+      loop: true
+    };
+    
+    setFormData(prev => ({
+      ...prev,
+      animations: [...(prev.animations || []), newAnimation]
+    }));
+  };
+
+  const handleDeleteAnimation = (index: number) => {
+    if (window.confirm('Sei sicuro di voler cancellare questa animazione?')) {
+      setFormData(prev => ({
+        ...prev,
+        animations: prev.animations?.filter((_, i) => i !== index) || []
+      }));
+      
+      if (selectedAnimationIndex === index) {
+        setSelectedAnimationIndex(null);
+        setSelectedFrameIndex(null); // Resetta anche l'indice del frame selezionato
+      }
+    }
+  };
+
+  const handleAnimationNameChange = (index: number, newName: string) => {
+    setFormData(prev => ({
+      ...prev,
+      animations: prev.animations?.map((anim, i) => 
+        i === index ? { ...anim, name: newName } : anim
+      ) || []
+    }));
+  };
+
+  const handleAddFrame = (animationIndex: number) => {
+    // Utilizza imageUploadService se fornito, altrimenti simula come in CharacterEditor
+    if (!imageUploadService) {
+      console.warn("imageUploadService not available in ItemEditor for handleAddFrame. Simulating file input.");
+      // Fallback a un semplice input file se imageUploadService non c'è (come in CharacterEditor)
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const imageData = event.target?.result as string;
+            const newFrame: AnimationFrame = {
+              imageData,
+              duration: 100 // Default 100ms
+            };
+            setFormData(prev => ({
+              ...prev,
+              animations: prev.animations?.map((anim, i) => 
+                i === animationIndex 
+                  ? { ...anim, frames: [...anim.frames, newFrame] }
+                  : anim
+              ) || []
+            }));
+          };
+          reader.readAsDataURL(file);
+        }
+      };
+      input.click();
+      return;
+    }
+
+    // Se imageUploadService è disponibile, crea un input file e usa il servizio
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        setIsUploading(true); // Potresti voler uno stato di caricamento specifico per i frame
+        try {
+          const imageData = await imageUploadService(file);
+          const newFrame: AnimationFrame = {
+            imageData,
+            duration: 100 // Default 100ms
+          };
+          setFormData(prev => ({
+            ...prev,
+            animations: prev.animations?.map((anim, i) => 
+              i === animationIndex 
+                ? { ...anim, frames: [...anim.frames, newFrame] }
+                : anim
+            ) || []
+          }));
+        } catch (error) {
+          console.error("Error uploading frame image:", error);
+          alert("Errore durante il caricamento dell'immagine del frame.");
+        } finally {
+          setIsUploading(false);
+        }
+      }
+    };
+    input.click();
+  };
+
+  const handleDeleteFrame = (animationIndex: number, frameIndex: number) => {
+    if (window.confirm('Sei sicuro di voler cancellare questo frame?')) {
+      setFormData(prev => ({
+        ...prev,
+        animations: prev.animations?.map((anim, i) => 
+          i === animationIndex 
+            ? { ...anim, frames: anim.frames.filter((_, fi) => fi !== frameIndex) }
+            : anim
+        ) || []
+      }));
+      
+      // Se il frame eliminato era quello selezionato, deselezionalo
+      if (selectedAnimationIndex === animationIndex && selectedFrameIndex === frameIndex) {
+        setSelectedFrameIndex(null);
+      }
+    }
+  };
+
+  const handleFrameDurationChange = (animationIndex: number, frameIndex: number, duration: number) => {
+    setFormData(prev => ({
+      ...prev,
+      animations: prev.animations?.map((anim, i) => 
+        i === animationIndex 
+          ? { 
+              ...anim, 
+              frames: anim.frames.map((frame, fi) => 
+                fi === frameIndex ? { ...frame, duration: Math.max(1, duration) } : frame // Assicura che la durata sia almeno 1
+              )
+            }
+          : anim
+      ) || []
+    }));
+  };
 
   // TODO: Implementare funzioni Create New, Delete (Delete Item rimane)
   return (
@@ -467,10 +610,91 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ imageUploadService }) =>
                 </div>
               )}
 
-              {/* TODO: Aggiungere altri campi specifici per Item */}
-              <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
-                Altri campi specifici per gli Item verranno aggiunti qui...
-              </p>
+              {/* Sezione Animazioni */}
+              <div className="mb-6">
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">Animazioni</h3>
+                  <button
+                    type="button"
+                    onClick={handleAddAnimation}
+                    className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
+                  >
+                    + Nuova Animazione
+                  </button>
+                </div>
+
+                {(formData.animations && formData.animations.length > 0) ? (
+                  formData.animations.map((animation, animIndex) => (
+                    <div key={animIndex} className="border rounded p-3 mb-3 bg-gray-50 dark:bg-gray-700/60">
+                      <div className="flex justify-between items-center mb-2">
+                        <input
+                          type="text"
+                          value={animation.name}
+                          onChange={(e) => handleAnimationNameChange(animIndex, e.target.value)}
+                          className="font-medium bg-transparent border-b border-gray-400 dark:border-gray-500 focus:outline-none focus:border-blue-500 dark:text-white"
+                          placeholder="Nome Animazione"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteAnimation(animIndex)}
+                          className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 text-sm p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-700/30"
+                          title="Elimina Animazione"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                      </div>
+
+                      <div className="mb-2">
+                        <button
+                          type="button"
+                          onClick={() => handleAddFrame(animIndex)}
+                          className="px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-xs"
+                        >
+                          + Aggiungi Frame
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                        {animation.frames.map((frame, frameIndex) => (
+                          <div key={frameIndex} className="relative border rounded p-2 bg-white dark:bg-gray-800 aspect-square flex flex-col justify-between">
+                            <img
+                              src={frame.imageData}
+                              alt={`Frame ${frameIndex + 1}`}
+                              className="w-full h-auto object-contain rounded mb-1 max-h-20 mx-auto"
+                            />
+                            <div className="flex items-center justify-between text-xs mt-1">
+                              <input
+                                type="number"
+                                value={frame.duration || 100}
+                                onChange={(e) => handleFrameDurationChange(animIndex, frameIndex, parseInt(e.target.value))}
+                                className="w-14 px-1 py-0.5 border rounded text-xs dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                min="1"
+                              />
+                              <span className="text-gray-500 dark:text-gray-400 ml-1">ms</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteFrame(animIndex, frameIndex)}
+                              className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs hover:bg-red-600"
+                              style={{ transform: 'translate(30%, -30%)' }}
+                              title="Elimina Frame"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+
+                      {animation.frames.length === 0 && (
+                        <p className="text-gray-500 dark:text-gray-400 text-sm italic">Nessun frame aggiunto a questa animazione.</p>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-gray-500 dark:text-gray-400 text-sm italic">Nessuna animazione definita per questo item.</p>
+                )}
+              </div>
+
               {/* Bottoni Azioni */}
               <div className="flex justify-end space-x-2 mt-6">               
                 <button type="button" className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600">

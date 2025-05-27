@@ -116,6 +116,7 @@ type Item struct {
 	Alpha          *image.Alpha
 	Image          []byte
 	InventoryImage []byte
+	Animations     map[string][][]byte
 	UseWith        bool
 	Pickable       bool
 }
@@ -201,8 +202,9 @@ func NewItem(name string, useWith bool, pickable bool, sprite []byte) Item {
 			Type: ITEM,
 			Name: name,
 		},
-		UseWith:  useWith,
-		Pickable: pickable,
+		UseWith:    useWith,
+		Pickable:   pickable,
+		Animations: make(map[string][][]byte),
 	}
 
 	if len(sprite) != 0 {
