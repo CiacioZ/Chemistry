@@ -123,32 +123,26 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
     if (!imageRef.current || !canvasRef.current || !imageSize) return null;
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
-    // Le coordinate dell'evento mouse sono relative al viewport
     const canvasX = e.clientX - rect.left;
     const canvasY = e.clientY - rect.top;
 
-    // Scala per convertire da dimensioni visualizzate (canvas) a dimensioni naturali (immagine)
-    // Usiamo imageRef.current.clientWidth/Height perché il canvas è scalato su queste dimensioni
     const displayedWidth = imageRef.current.clientWidth;
     const displayedHeight = imageRef.current.clientHeight;
 
-    // Evita divisione per zero
     if (displayedWidth === 0 || displayedHeight === 0) return null;
 
     const scaleX = imageSize.width / displayedWidth;
     const scaleY = imageSize.height / displayedHeight;
 
-    // Coordinate naturali
-    const naturalX = canvasX * scaleX;
-    const naturalY = canvasY * scaleY;
+    let naturalX = canvasX * scaleX;
+    let naturalY = canvasY * scaleY;
 
-    // Assicurati che le coordinate siano entro i limiti dell'immagine naturale (opzionale ma buona pratica)
-     if (naturalX < 0 || naturalY < 0 || naturalX > imageSize.width || naturalY > imageSize.height) {
-        return null;
-     }
+    // Assicurati che le coordinate siano entro i limiti dell'immagine naturale prima dell'arrotondamento
+    naturalX = Math.max(0, Math.min(imageSize.width, naturalX));
+    naturalY = Math.max(0, Math.min(imageSize.height, naturalY));
 
-    return { x: naturalX, y: naturalY };
-  }, [imageSize]); // Dipende da imageSize
+    return { x: Math.round(naturalX), y: Math.round(naturalY) };
+  }, [imageSize]);
 
 
   // Funzione per trovare un vertice vicino a un punto del canvas
