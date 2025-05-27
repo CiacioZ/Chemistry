@@ -381,10 +381,18 @@ func (g *Game) updateCameraPosition() {
 
 	g.state.camera.Position[0] = targetCameraX
 
-	// TODO: Implement vertical camera scrolling if needed
-	// if g.state.currentCharacterPosition.Y >= screenHeight/2 && int(g.state.camera.Position[1]+screenHeight) < g.state.currentBackGround.Bounds().Dy() {
-	// 	g.state.camera.Position[1] = float64(g.state.currentCharacterPosition.Y - (screenHeight / 2))
-	// }
+	// Implement vertical camera scrolling
+	targetCameraY := float64(g.state.currentCharacterPosition.Y - (screenHeight / 2))
+
+	// Clamp camera position to background bounds
+	maxCameraY := float64(g.state.currentBackGround.Bounds().Dy() - screenHeight)
+	if targetCameraY < 0 {
+		targetCameraY = 0
+	} else if targetCameraY > maxCameraY {
+		targetCameraY = maxCameraY
+	}
+
+	g.state.camera.Position[1] = targetCameraY
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
