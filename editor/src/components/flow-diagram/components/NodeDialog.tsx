@@ -144,7 +144,7 @@ import {
          const actionNode = node as ActionNode;
          setTempValues({
            ...actionNode,
-           from: resolveEntityId(actionNode.from || 'MAIN_CHARACTER', entities),
+           from: resolveEntityId(actionNode.from || 'SOMEONE', entities),
            to: resolveEntityId(actionNode.to, entities),
            with: resolveEntityId(actionNode.with, entities),
            where: resolveEntityId(actionNode.where, entities),
@@ -153,7 +153,7 @@ import {
          setTempValues(node); // Per StateNode o altri tipi
        }
      }
-   }, [open, node, entities]); // Aggiunto entities alle dipendenze per resolveEntityId
+   }, [open, node]); // RIMOSSO entities dalle dipendenze
  
    const handleAddEntity = (fieldName: string, type: EntityType) => {
      if (!type) return;
@@ -202,7 +202,10 @@ import {
        }
 
        setEntities(prevEntities => [...prevEntities, newEntity]);
-       handleInputChange(fieldName, newEntityId);
+       setTempValues(prev => ({
+         ...prev,
+         [fieldName]: newEntityId
+       }));
      }
    };
  
@@ -247,7 +250,7 @@ import {
  
    // Determina i tipi di entità per il campo 'to' basati sul verbo corrente
    const toEntityTypes = node.type === 'action' ? getToEntityTypes((tempValues as Partial<ActionNode>).verb || '') : [];
-   const defaultFromValue = resolveEntityId('MAIN_CHARACTER', entities); // Risolvi MAIN_CHARACTER per il default
+   const defaultFromValue = resolveEntityId('SOMEONE', entities); 
  
    return (
      <Dialog open={open} onOpenChange={(isOpen) => {

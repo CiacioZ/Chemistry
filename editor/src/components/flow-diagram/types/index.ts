@@ -190,24 +190,12 @@ export interface ActionDetails {
 
 export const PREDEFINED_ENTITIES: AnyEntity[] = [
     {
-        id: 'MAIN_CHARACTER_GUID', // Static GUID for MAIN_CHARACTER
-        type: 'Character',
-        name: 'MAIN_CHARACTER',
-        internal: false, // Should be selectable/visible in dropdowns normally
-        details: {
-            description: 'The main character of the game.',
-            imageData: '', // Add empty string for imageData
-            // inventory: [], // Removed, not in new CharacterDetails
-            // dialogueTree: undefined, // Removed
-        }
-    },
-    {
         id: uuidv4(), // Generate GUID
         type: 'Character',
-        name: 'SOMETHING',
+        name: 'SOMEONE',
         internal: true,
         details: {
-            description: 'A predefined something character',
+            description: 'A generic character',
             imageData: '', // Add empty string for imageData
             // inventory: [], // Removed
             // dialogueTree: undefined, // Removed
@@ -219,7 +207,7 @@ export const PREDEFINED_ENTITIES: AnyEntity[] = [
         name: 'NOTHING',
         internal: true,
         details: {
-            description: 'Represents nothing or no item.',
+            description: 'Represents no item.',
             imageData: '', // Add empty string for imageData
             canBePickedUp: false,
             useWith: false,
@@ -228,7 +216,7 @@ export const PREDEFINED_ENTITIES: AnyEntity[] = [
     {
         id: uuidv4(), // Generate GUID
         type: 'Item',
-        name: 'ANY_ITEM',
+        name: 'SOMETHING',
         internal: true,
         details: {
             description: 'Represents any item.',
@@ -241,10 +229,10 @@ export const PREDEFINED_ENTITIES: AnyEntity[] = [
     {
         id: uuidv4(), // Generate GUID
         type: 'Location',
-        name: 'CURRENT_LOCATION',
+        name: 'EVERYWHERE',
         internal: true,
         details: {
-            description: 'The current location of the player.',
+            description: 'A generic location for the player.',
             backgroundImage: '', // Changed from null to empty string
             // walkableAreas: [], // Changed to walkableArea
             walkableArea: [],
