@@ -175,7 +175,7 @@ import {
              type,
              name,
              internal: false,
-             details: { description: '', animations: [], inventory: [] },
+             details: { description: '', imageData: '', animations: [] },
            };
            break;
          case 'Item':
@@ -193,7 +193,7 @@ import {
              type,
              name,
              internal: false,
-             details: { description: '', backgroundImage: null, walkableAreas: [], placedItems: [], placedCharacters: [] },
+             details: { description: '', backgroundImage: '', walkableArea: [], polygons: [], placedItems: [], placedCharacters: [] },
            };
            break;
          default:

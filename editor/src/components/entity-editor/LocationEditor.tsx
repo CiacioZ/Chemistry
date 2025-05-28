@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, Dispatch, SetStateAction, useRef } from 'react'; // Added useRef
 import { useDiagramContext } from '../flow-diagram/contexts/DiagramContext';
-import { Entity, LocationEntity, ItemEntity, CharacterEntity } from '../flow-diagram/types/index'; // Importa ItemEntity e CharacterEntity
+import { Entity, LocationEntity, ItemEntity, CharacterEntity, LocationDetails, Polygon, PlacedEntity, Point } from '../flow-diagram/types/index'; // Importa ItemEntity, CharacterEntity, AND LocationDetails, Polygon, PlacedEntity, Point
 import { PolygonEditor } from './PolygonEditor';
 import { PlacementEditor } from './PlacementEditor'; // Assicurati che questo import sia corretto
 import { v4 as uuidv4 } from 'uuid'; // Import uuid
@@ -18,15 +18,16 @@ interface LocationData {
   placedCharacters?: Array<{ entityId: string; x: number; y: number }>; // Esempio per personaggi piazzati
 }
 
-interface LocationEditorProps { // Aggiunta interfaccia Props
+export interface LocationEditorProps { // Aggiunta interfaccia Props // Ensure this is exported
   imageUploadService?: (file: File) => Promise<string>;
   setEntities: Dispatch<SetStateAction<Entity[]>>; // MODIFICATO
+  onLocationSelectedForSubEditing?: (locationId: string | null) => void; // Added callback prop
 }
 
 // Definiamo i tipi per le modalità di editing
 type EditorMode = 'polygons' | 'placement';
 
-export const LocationEditor: React.FC<LocationEditorProps> = ({ imageUploadService }) => {
+export const LocationEditor: React.FC<LocationEditorProps> = ({ imageUploadService, onLocationSelectedForSubEditing }) => {
   const { entities, setEntities } = useDiagramContext(); // Get setEntities
 
   // Derive the list of location entities directly from the context
@@ -43,18 +44,32 @@ export const LocationEditor: React.FC<LocationEditorProps> = ({ imageUploadServi
   // Stato per la modalità di editing corrente
   const [editorMode, setEditorMode] = useState<EditorMode>('polygons');
   const isInitialDataLoad = useRef(false);
+  const currentSelectedLocationDetails = useMemo(() => {
+    if (!selectedLocationId) return null;
+    const loc = entities.find(e => e.id === selectedLocationId && e.type === 'Location') as LocationEntity | undefined;
+    // Ensure a full LocationDetails object, even if details are initially undefined
+    return {
+        description: '',
+        backgroundImage: '',
+        walkableArea: [],
+        polygons: [],
+        placedItems: [],
+        placedCharacters: [],
+        ...(loc?.details || {}),
+    } as LocationDetails;
+  }, [selectedLocationId, entities]);
 
   useEffect(() => {
     if (selectedLocationId) {
       const selectedEntity = graphLocations.find(loc => loc.id === selectedLocationId);
       if (selectedEntity) {
         isInitialDataLoad.current = true;
-        const details = selectedEntity.details || {};
+        // Use currentSelectedLocationDetails which guarantees a full object
         setFormData({
           id: selectedEntity.id,
           name: selectedEntity.name,
-          description: details.description || '',
-          background: details.backgroundImage || '',
+          description: currentSelectedLocationDetails?.description || '',
+          background: currentSelectedLocationDetails?.backgroundImage || '',
         });
       } else {
         setSelectedLocationId(null);
@@ -83,17 +98,26 @@ export const LocationEditor: React.FC<LocationEditorProps> = ({ imageUploadServi
         const updatedEntities = prevEntities.map(entity => {
             if (entity.id === locationIdToUpdate && entity.type === 'Location') {
                 const locEntity = entity as LocationEntity;
-                const currentDetails = locEntity.details || {};
-                // Ensure formData.name and formData.description are treated as empty strings if null/undefined for comparison & assignment
+                
+                // Ensure we have a base for details, even if locEntity.details is undefined
+                const baseDetails: LocationDetails = {
+                    description: '',
+                    backgroundImage: '',
+                    walkableArea: [],
+                    polygons: [],
+                    placedItems: [],
+                    placedCharacters: [],
+                    ...(locEntity.details || {}), // Spread existing details over defaults
+                };
+
                 const newName = formData.name || ''; 
                 const newDescription = formData.description || '';
 
                 const currentName = locEntity.name || '';
-                const currentDesc = currentDetails.description || '';
+                // Use baseDetails for comparison to ensure properties exist
+                const currentDesc = baseDetails.description;
 
-                // Only proceed if name or description has actually changed
                 if (currentName !== newName || currentDesc !== newDescription) {
-                    // Name conflict check: only if the name is actually changing to something new
                     if (currentName !== newName) {
                         const isNameTaken = prevEntities.some(e => 
                             e.type === 'Location' && 
@@ -101,36 +125,32 @@ export const LocationEditor: React.FC<LocationEditorProps> = ({ imageUploadServi
                             e.id !== locationIdToUpdate
                         );
                         if (isNameTaken) {
-                            // console.warn(`Location name "${newName}" is already in use. Update skipped.`);
-                            // If name is taken, do not update this entity, return original.
-                            // Also, consider reverting formData.name here to avoid user confusion or trigger a UI warning.
-                            // For now, just skip update for this entity.
                             return locEntity; 
                         }
                     }
                     
-                    entityActuallyChanged = true; // Mark that this entity will be changed
+                    entityActuallyChanged = true; 
                     return {
                         ...locEntity,
                         name: newName,
                         details: {
-                            ...currentDetails,
-                            description: newDescription,
+                            ...baseDetails, // Spread base details first
+                            description: newDescription, // Then override specific fields
+                            // Other fields like backgroundImage, polygons etc., are preserved from baseDetails
                         },
                     } as LocationEntity;
                 }
-                return locEntity; // Return original if no change to this specific entity
+                return locEntity; 
             }
             return entity;
         });
 
-        // Only return a new array if the specific location entity was actually changed
         if (entityActuallyChanged) {
             return updatedEntities;
         }
-        return prevEntities; // Return original array reference if no entity was modified
+        return prevEntities; 
     });
-  }, [formData.name, formData.description, selectedLocationId, setEntities]);
+  }, [formData.name, formData.description, selectedLocationId, setEntities]); // Removed entities from dependencies
 
   // Handler for form input changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -146,6 +166,9 @@ export const LocationEditor: React.FC<LocationEditorProps> = ({ imageUploadServi
   const handleSelectLocation = (id: string) => {
     setSelectedLocationId(id);
     setEditorMode('polygons'); // Reset to default editor mode on selection
+    if (onLocationSelectedForSubEditing) {
+      onLocationSelectedForSubEditing(id);
+    }
   };
 
   const handleCreateLocation = () => {
@@ -165,8 +188,9 @@ export const LocationEditor: React.FC<LocationEditorProps> = ({ imageUploadServi
         internal: false,
         details: {
             description: '',
-            backgroundImage: null,
-            walkableAreas: [],
+            backgroundImage: '',
+            walkableArea: [],
+            polygons: [],
             placedItems: [],
             placedCharacters: []
         }
@@ -174,6 +198,9 @@ export const LocationEditor: React.FC<LocationEditorProps> = ({ imageUploadServi
     setEntities(prevEntities => [...prevEntities, newLocation]);
     setSelectedLocationId(newGuid); // Select the new location by its GUID
     setEditorMode('polygons'); // Set to default edit mode
+    if (onLocationSelectedForSubEditing) {
+      onLocationSelectedForSubEditing(newGuid);
+    }
   };
 
   const handleDeleteLocation = useCallback((locationIdToDelete: string) => {
@@ -185,10 +212,13 @@ export const LocationEditor: React.FC<LocationEditorProps> = ({ imageUploadServi
       if (selectedLocationId === locationIdToDelete) {
         setSelectedLocationId(null);
         setFormData({});
+        if (onLocationSelectedForSubEditing) {
+          onLocationSelectedForSubEditing(null);
+        }
       }
       // Potresti voler mostrare una notifica di successo qui
     }
-  }, [selectedLocationId, setEntities, entities]); 
+  }, [selectedLocationId, setEntities, entities, onLocationSelectedForSubEditing]); 
 
   // TODO: Implement functions for saving changes, creating new locations (adding to entities), deleting locations (removing from entities)
 
@@ -253,110 +283,77 @@ export const LocationEditor: React.FC<LocationEditorProps> = ({ imageUploadServi
                     type="text"
                     id="locationId"
                     name="id"
-                    value={formData.id || ''} // This is the GUID
+                    value={formData.id || ''} // Use formData.id which is set from selectedLocationId
                     readOnly
                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 dark:bg-gray-600 dark:border-gray-500 dark:text-gray-300"
                 />
             </div>
             <div className="mb-4">
-                <label htmlFor="locationName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Name
-                </label>
-                <input
-                    type="text"
-                    id="locationName"
-                    name="name"
-                    value={formData.name || ''}
-                    onChange={handleChange} // Assumes handleChange updates formData.name
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                />
+              <label htmlFor="locationName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Name
+              </label>
+              <input
+                type="text"
+                id="locationName"
+                name="name"
+                value={formData.name || ''}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              />
             </div>
             <div className="mb-4">
-                <label htmlFor="locationDescription" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Description
-                </label>
-                <textarea
-                    id="locationDescription"
-                    name="description"
-                    rows={2} // Shorter description field for locations
-                    value={formData.description || ''}
-                    onChange={handleChange} // Assumes handleChange updates formData.description
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                />
+              <label htmlFor="locationDescription" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Description
+              </label>
+              <textarea
+                id="locationDescription"
+                name="description"
+                rows={3}
+                value={formData.description || ''}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              />
             </div>
 
-            {/* Selettore Modalità di Editing */}
+            {/* Mode Toggles */}
             <div className="mb-4 flex space-x-2 border-b pb-2">
-              <button
-                onClick={() => setEditorMode('polygons')}
-                className={`px-4 py-2 rounded-md text-sm font-medium
-                            ${editorMode === 'polygons' 
-                              ? 'bg-indigo-600 text-white' 
-                              : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500'}`}
+              <button 
+                onClick={() => setEditorMode('polygons')} 
+                className={`px-3 py-1 rounded text-sm ${editorMode === 'polygons' ? 'bg-indigo-600 text-white' : 'bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500'}`}
               >
-                Edit Walkable Areas
+                Edit Walkable Area / Background
               </button>
-              <button
-                onClick={() => setEditorMode('placement')}
-                className={`px-4 py-2 rounded-md text-sm font-medium
-                            ${editorMode === 'placement' 
-                              ? 'bg-indigo-600 text-white' 
-                              : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500'}`}
+              <button 
+                onClick={() => setEditorMode('placement')} 
+                className={`px-3 py-1 rounded text-sm ${editorMode === 'placement' ? 'bg-indigo-600 text-white' : 'bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500'}`}
               >
-                Place Objects/Actors
+                Place Entities
               </button>
             </div>
 
-            {/* Contenuto dell'Editor condizionale */}
-            <div className="flex-grow"> {/* Questo div si espanderà per riempire lo spazio */}
-              {(() => {
-                const selectedLocationEntity = entities.find(
-                    (e): e is LocationEntity => e.type === 'Location' && e.id === selectedLocationId // Find by GUID
-                );
-                
-                if (!selectedLocationEntity) {
-                    return (
-                        <div className="text-center text-gray-500 dark:text-gray-400 mt-10">
-                            Selected location not found.
-                        </div>
-                    );
-                }
-                const details = selectedLocationEntity.details || {};         
-
-                if (editorMode === 'polygons') {
-                  return (
-                    <PolygonEditor
-                      key={`${selectedLocationId}-polygons`}
-                      locationId={selectedLocationId} // Pass GUID
-                      initialImageUrlFromEntity={details.backgroundImage || null}
-                      initialPolygonsFromEntity={details.walkableAreas || []}
-                      entities={entities}
-                      setEntities={setEntities}
-                      imageUploadService={imageUploadService}
-                    />
-                  );
-                } else if (editorMode === 'placement') {
-                  // Filtra per ottenere solo Item e Character per le liste di selezione
-                  const itemsForPlacement = entities.filter((e): e is ItemEntity => e.type === 'Item' && e.internal !== true);
-                  const charactersForPlacement = entities.filter((e): e is CharacterEntity => e.type === 'Character' && e.internal !== true);
-                  
-                  return (
-                    <PlacementEditor
-                      key={`${selectedLocationId}-placement`}
-                      locationId={selectedLocationId} // Pass GUID
-                      locationImageUrl={details.backgroundImage || null}
-                      initialPlacedObjects={details.placedItems || []} // da LocationEntityDetails
-                      initialPlacedCharacters={details.placedCharacters || []} // da LocationEntityDetails
-                      allItems={itemsForPlacement}
-                      allCharacters={charactersForPlacement}
-                      entities={entities} // Passa l'array completo di entità
-                      setEntities={setEntities} // Passa la funzione per aggiornare le entità
-                    />
-                  );
-                }
-                return null; // Non dovrebbe accadere se editorMode è sempre uno dei valori validi
-              })()}
-            </div>
+            {/* Conditional rendering of PolygonEditor or PlacementEditor based on mode */}
+            {editorMode === 'polygons' && currentSelectedLocationDetails && (
+              <PolygonEditor
+                locationId={selectedLocationId} // Pass GUID
+                initialImageUrlFromEntity={currentSelectedLocationDetails.backgroundImage || null} // Use memoized details
+                initialPolygonsFromEntity={currentSelectedLocationDetails.polygons || []} // Changed from walkableArea to polygons
+                entities={entities}
+                setEntities={setEntities}
+                imageUploadService={imageUploadService}
+              />
+            )}
+            {editorMode === 'placement' && currentSelectedLocationDetails && (
+              <PlacementEditor
+                locationId={selectedLocationId}
+                locationImageUrl={currentSelectedLocationDetails.backgroundImage || null} // Use memoized details
+                initialPlacedObjects={currentSelectedLocationDetails.placedItems || []}
+                initialPlacedCharacters={currentSelectedLocationDetails.placedCharacters || []}
+                allItems={entities.filter(e => e.type === 'Item') as ItemEntity[]}
+                allCharacters={entities.filter(e => e.type === 'Character') as CharacterEntity[]}
+                entities={entities} // Pass full entities list for other lookups if needed
+                setEntities={setEntities}
+              />
+            )}
           </>
         ) : (
           <div className="text-center text-gray-500 dark:text-gray-400 mt-10">

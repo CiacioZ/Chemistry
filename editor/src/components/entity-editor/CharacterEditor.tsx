@@ -136,8 +136,8 @@ export const CharacterEditor: React.FC = () => {
         internal: false,
         details: {
             description: '',
+            imageData: '',
             animations: [],
-            inventory: []
         }
     };
     setEntities(prevEntities => [...prevEntities, newCharacter]);

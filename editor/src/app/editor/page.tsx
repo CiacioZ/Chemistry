@@ -11,9 +11,11 @@ import { saveDiagram, loadDiagram } from '@/components/flow-diagram/utils/saveLo
 import { LocationEditor } from '@/components/entity-editor/LocationEditor';
 import { ItemEditor } from '@/components/entity-editor/ItemEditor';
 import { CharacterEditor } from '@/components/entity-editor/CharacterEditor';
+import { ScriptEditor } from '@/components/entity-editor/ScriptEditor';
+import { FontEditor } from '@/components/entity-editor/FontEditor';
 import { PREDEFINED_ENTITIES } from '@/components/flow-diagram/types/index'; // Questo import dovrebbe essere già presente
 
-const editorTabs: EditorTabType[] = ['Graph', 'Locations', 'Items', 'Characters'];
+const editorTabs: EditorTabType[] = ['Graph', 'Locations', 'Items', 'Characters', 'Scripts', 'Fonts'];
 
 export default function EditorPage() {
   const [currentTab, setCurrentTab] = useState<EditorTabType>('Graph');
@@ -104,6 +106,10 @@ export default function EditorPage() {
         return <ItemEditor imageUploadService={dummyImageUploadService} />; // <-- QUI VIENE PASSATO IL SERVIZIO
       case 'Characters':
         return <CharacterEditor />;
+      case 'Scripts':
+        return <ScriptEditor />;
+      case 'Fonts':
+        return <FontEditor fileUploadService={dummyImageUploadService} />;
       default:
         return null;
     }

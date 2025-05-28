@@ -73,14 +73,14 @@ export interface Position {
     } | null;
   }
 
-export type EntityType = 'Character' | 'Item' | 'Location';
+export type EntityType = 'Character' | 'Item' | 'Location' | 'Action' | 'Font' | 'Script';
 
 export interface Entity {
   id: string;
   type: EntityType;
   name: string;
-  internal: boolean;
-  details?: AllEntityDetails; // Modifica: Aggiunto campo details opzionale
+  internal?: boolean;
+  details?: EntityDetails;
 }
 
 // Interfaccia per un singolo frame di animazione
@@ -98,24 +98,42 @@ export interface Animation {
 
 // E aggiorna CharacterDetails:
 export interface CharacterDetails {
-  description?: string;
-  inventory?: string[];
-  dialogueTree?: string;
-  animations?: Animation[]; // Cambiato da { [id: string] : string ; }
-  imageData?: string;
+  description: string;
+  imageData: string;
+  inventoryImageData?: string;
+  animations?: Animation[];
+  interactionSpot?: Point; // Aggiunto per il punto di interazione
 }
 
 export interface ItemDetails {
-  description?: string;
+  description: string;
+  imageData: string;
   canBePickedUp?: boolean;
-  useWith: boolean;
-  imageData?: string;
   inventoryImageData?: string;
-  animations?: Animation[]; // Changed to use Animation interface array
+  animations?: Animation[];
+  useWith?: boolean; // For use with actions
+  interactionSpot?: Point; // Aggiunto per il punto di interazione
 }
 
-// Aggiunta: Tipo unione per tutti i dettagli delle entità
-export type AllEntityDetails = CharacterDetails | ItemDetails | LocationDetails;
+export interface LocationDetails {
+  description: string;
+  backgroundImage?: string;
+  walkableArea?: Point[][]; // Array di poligoni (Point[])
+  polygons?: Polygon[]; // Updated to use the Polygon interface
+  placedItems?: PlacedEntity[];
+  placedCharacters?: PlacedEntity[];
+  backgroundColor?: string;
+}
+
+export interface FontDetails {
+  fontFileUrl: string;
+}
+
+export interface ScriptDetails {
+  scriptContent: string;
+}
+
+export type EntityDetails = CharacterDetails | ItemDetails | LocationDetails | ActionDetails | FontDetails | ScriptDetails;
 
 export interface Point {
   x: number;
@@ -130,91 +148,108 @@ export interface PlacedEntity {
   interactionSpot: Point; // Nuovo campo per il punto di interazione
 }
 
-export interface LocationDetails {
-  backgroundImage: string | null;
-  walkableAreas: Polygon[];  
-  description?: string;
-  placedItems?: PlacedEntity[];
-  placedCharacters?: PlacedEntity[];
-}
-
 export interface LocationEntity extends Entity {
   type: 'Location';
-  details: LocationDetails;
+  details?: LocationDetails;
 }
 
 export interface CharacterEntity extends Entity {
   type: 'Character';
-  details: CharacterDetails;
+  details?: CharacterDetails;
 }
 
 export interface ItemEntity extends Entity {
   type: 'Item';
-  details: ItemDetails;
+  details?: ItemDetails;
+}
+
+export interface ActionEntity extends Entity {
+  type: 'Action';
+  details?: ActionDetails;
+}
+
+export interface FontEntity extends Entity {
+  type: 'Font';
+  details?: FontDetails;
+}
+
+export interface ScriptEntity extends Entity {
+  type: 'Script';
+  details?: ScriptDetails;
 }
 
 // Tipo Entity come unione discriminata basata sulle interfacce specifiche
-export type AnyEntity = LocationEntity | CharacterEntity | ItemEntity;
+export type AnyEntity = CharacterEntity | ItemEntity | LocationEntity | ActionEntity | FontEntity | ScriptEntity;
 
+// Placeholder for ActionDetails - define its fields as needed
+export interface ActionDetails {
+    actionType?: string; // Example field, replace with actual fields
+    targetEntityId?: string; // Example field
+    // Add other fields specific to actions
+}
 
-export const PREDEFINED_ENTITIES: AnyEntity[] = [ // Usiamo AnyEntity[] per maggiore specificità
-  {
-    id: 'main_character_guid', // ID GUID fisso per MAIN_CHARACTER
-    type: 'Character',
-    name: 'MAIN_CHARACTER',
-    internal: false,
-    details: {
-      description: 'The main player character.',
-      inventory: [],
-      dialogueTree: undefined,
+export const PREDEFINED_ENTITIES: AnyEntity[] = [
+    {
+        id: 'MAIN_CHARACTER_GUID', // Static GUID for MAIN_CHARACTER
+        type: 'Character',
+        name: 'MAIN_CHARACTER',
+        internal: false, // Should be selectable/visible in dropdowns normally
+        details: {
+            description: 'The main character of the game.',
+            imageData: '', // Add empty string for imageData
+            // inventory: [], // Removed, not in new CharacterDetails
+            // dialogueTree: undefined, // Removed
+        }
+    },
+    {
+        id: uuidv4(), // Generate GUID
+        type: 'Character',
+        name: 'SOMETHING',
+        internal: true,
+        details: {
+            description: 'A predefined something character',
+            imageData: '', // Add empty string for imageData
+            // inventory: [], // Removed
+            // dialogueTree: undefined, // Removed
+        }
+    },
+    {
+        id: uuidv4(), // Generate GUID
+        type: 'Item',
+        name: 'NOTHING',
+        internal: true,
+        details: {
+            description: 'Represents nothing or no item.',
+            imageData: '', // Add empty string for imageData
+            canBePickedUp: false,
+            useWith: false,
+        }
+    },
+    {
+        id: uuidv4(), // Generate GUID
+        type: 'Item',
+        name: 'ANY_ITEM',
+        internal: true,
+        details: {
+            description: 'Represents any item.',
+            imageData: '', // Add empty string for imageData
+            canBePickedUp: true,
+            inventoryImageData: '', // Add empty string
+            useWith: false,
+        }
+    },
+    {
+        id: uuidv4(), // Generate GUID
+        type: 'Location',
+        name: 'CURRENT_LOCATION',
+        internal: true,
+        details: {
+            description: 'The current location of the player.',
+            backgroundImage: '', // Changed from null to empty string
+            // walkableAreas: [], // Changed to walkableArea
+            walkableArea: [],
+        }
     }
-  },
-  {
-    id: uuidv4(),
-    type: 'Character',
-    name: 'SOMEONE',
-    internal: true,
-    details: {
-      inventory: [],
-      dialogueTree: undefined, // o un valore di default appropriato
-    }
-  },
-  {
-    id: uuidv4(),
-    type: 'Item',
-    name: 'NOTHING',
-    internal: true,
-    details: {
-      description: 'Nothing special.',
-      canBePickedUp: false,
-      imageData: '',
-      inventoryImageData: '', 
-      useWith: false 
-    }
-  },
-  {
-    id: uuidv4(),
-    type: 'Item',
-    name: 'SOMETHING',
-    internal: true,
-    details: {
-      description: 'An interesting item.',
-      canBePickedUp: true,
-      inventoryImageData: '', 
-      useWith: false 
-    }
-  },
-  {
-    id: uuidv4(),
-    type: 'Location',
-    name: 'EVERYWHERE',
-    internal: true,
-    details: {
-      backgroundImage: null,
-      walkableAreas: [],
-      description: 'An ubiquitous place.'
-    }
-  }
 ];
 
 export const VERBS = ['Talk to', 'Go to', 'Interact with'] as const;

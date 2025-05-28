@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback, Dispatch, SetStateAction } from 'react';
-import { Polygon, Point, Entity, LocationEntity } from '../flow-diagram/types/index';
+import { Polygon, Point, Entity, LocationEntity, LocationDetails, PlacedEntity } from '../flow-diagram/types/index';
 
 
 
@@ -85,19 +85,32 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
     const updatedEntities = entities.map(entity => {
       if (entity.type === 'Location' && entity.id === locationId) {
         const locEntity = entity as LocationEntity;
+        // Ensure a base for details, providing defaults for all LocationDetails fields
+        const baseDetails: LocationDetails = {
+            description: '',
+            backgroundImage: '',
+            walkableArea: [], // Assuming Point[][] for walkableArea
+            polygons: [],     // Polygon[] for polygons
+            placedItems: [],
+            placedCharacters: [],
+            backgroundColor: '',
+            ...(locEntity.details || {}), // Spread existing details over defaults
+        };
+
         return {
           ...locEntity,
           details: {
-            ...(locEntity.details || {}),
-            backgroundImage: imageUrl,
-            walkableAreas: polygons,
+            ...baseDetails, // Spread the comprehensive base details first
+            backgroundImage: imageUrl, // Update specific fields managed by PolygonEditor
+            polygons: polygons,      // Update polygons specifically
+            // description is preserved from baseDetails or existing locEntity.details
+            // walkableArea is preserved (if it was different from polygons)
           },
-        };
+        } as LocationEntity; // Ensure the returned object is cast to LocationEntity
       }
       return entity;
     });
     setEntities(updatedEntities);
-    // You can add a confirmation log or a user notification if desired
     // console.log(`Location ${locationId} data updated in context.`);
   }, [locationId, imageUrl, polygons, entities, setEntities]);
 
