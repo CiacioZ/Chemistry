@@ -84,7 +84,7 @@ func (p *Pathfinder) Path(start, dest image.Point) []image.Point {
 
 	graphVertices := append(p.concaveVertices, start, dest)
 	p.visibilityGraph = visibilityGraph(p.polygonSet, graphVertices)
-	return FindPath[image.Point](p.visibilityGraph, start, dest, nodeDist, nodeDist)
+	return FindPath(p.visibilityGraph, start, dest, nodeDist, nodeDist)
 }
 
 func ensureInside(ps PolygonSet, pt image.Point) image.Point {

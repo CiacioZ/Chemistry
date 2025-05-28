@@ -3,7 +3,6 @@ package logic
 import (
 	"chemistry/engine/model"
 	"image"
-	"log"
 
 	lua "github.com/yuin/gopher-lua"
 )
@@ -192,14 +191,6 @@ func luaSetCurrentCursor(L *lua.LState, game *Game) int {
 	cursorName := L.CheckString(1)
 	game.SetCurrentCursor(cursorName)
 	return 0
-}
-
-// Placeholder for complex types like Location, Character, Item
-// These would need conversion to/from Lua tables or userdata
-func pushNotYetImplemented(L *lua.LState, typeName string) int {
-	log.Printf("Warning: Pushing %s to Lua is not fully implemented. Returning nil.", typeName)
-	L.Push(lua.LNil)
-	return 1
 }
 
 // Helper to convert image.Point to a Lua table

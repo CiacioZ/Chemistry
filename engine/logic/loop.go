@@ -498,16 +498,16 @@ func (g *Game) drawText(screen *ebiten.Image, currentCharacter model.Character) 
 		opRegular := &text.DrawOptions{}
 		opRegular.GeoM.Translate(worldTextCenterX, worldTextTopY)
 		opRegular.ColorScale.ScaleWithColor(talkColor)
-		opRegular.PrimaryAlign = text.AlignCenter                      // Horizontal alignment
-		opRegular.SecondaryAlign = text.AlignStart                     // Vertical alignment (Y is top)
-		text.Draw(g.state.world, textToDisplay, goTextFace, opRegular) // Draw onto the world image
+		opRegular.PrimaryAlign = text.AlignCenter               // Horizontal alignment
+		opRegular.SecondaryAlign = text.AlignStart              // Vertical alignment (Y is top)
+		text.Draw(screen, textToDisplay, goTextFace, opRegular) // Draw onto the world image
 
 		opOutline := &text.DrawOptions{}
 		opOutline.GeoM.Translate(worldTextCenterX, worldTextTopY)
 		opOutline.ColorScale.ScaleWithColor(color.Black)
 		opOutline.PrimaryAlign = text.AlignCenter
 		opOutline.SecondaryAlign = text.AlignStart
-		text.Draw(g.state.world, textToDisplay, &text.GoTextFace{ // Use a new face for outline if needed, or reuse
+		text.Draw(screen, textToDisplay, &text.GoTextFace{ // Use a new face for outline if needed, or reuse
 			Source: fontFaceOutlineSource,
 			Size:   fontSize,
 		}, opOutline)

@@ -121,16 +121,6 @@ func (v Vec2) Lerp(w Vec2, t float32) Vec2 {
 	return Vec2{lerp(v.X, w.X, t), lerp(v.Y, w.Y, t)}
 }
 
-// angle returns the angle (counterclockwise) of vector v with the x axis in
-// radians. The result is in the interval [0,2π).
-func (v Vec2) angle() float32 {
-	a := math.Atan2(float64(v.Y), float64(v.X))
-	if a < 0 {
-		a += 2 * math.Pi
-	}
-	return float32(a)
-}
-
 // Min returns a vector with each component set to the lesser value
 // of the corresponding component pair of v and w.
 func (v Vec2) Min(w Vec2) Vec2 {
@@ -517,20 +507,6 @@ func (m *Mat4) Floats() *[16]float32 {
 	return (*[16]float32)(unsafe.Pointer(m))
 }
 
-// nearEq returns whether m and m2 are approximately equal. This relation is
-// not transitive in general. The tolerance for the floating-point components
-// is ±1e-5.
-func (m *Mat4) nearEq(m2 *Mat4) bool {
-	for i := range 4 {
-		for j := range 4 {
-			if !nearEq(m[i][j], m2[i][j], epsilon) {
-				return false
-			}
-		}
-	}
-	return true
-}
-
 // lerp returns the linear interpolation between a and b by amount t.
 // The amount t is usually a value between 0 and 1. If t=0 a will be returned;
 // if t=1 b will be returned.
@@ -611,7 +587,7 @@ func CalculateLine(x1, y1, x2, y2 int) []image.Point {
 	// Is line a vertical ?
 	case x1 == x2:
 		if y1 > y2 {
-			y1, y2 = y2, y1
+			y1, _ = y2, y1 // y2 (original y1) is not used in this block after swap
 			reverse = true
 		}
 		for ; dy != 0; dy-- {
