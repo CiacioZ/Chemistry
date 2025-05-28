@@ -25,6 +25,7 @@ export const FontEditor: React.FC<FontEditorProps> = ({ fileUploadService }) => 
   const [selectedFontId, setSelectedFontId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<FontData>>({});
   const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [dynamicFontFamily, setDynamicFontFamily] = useState<string | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isInitialDataLoad = useRef(false);
@@ -91,6 +92,48 @@ export const FontEditor: React.FC<FontEditorProps> = ({ fileUploadService }) => 
       setEntities(newEntitiesValue);
     }
   }, [formData, selectedFontId, setEntities, entities]);
+
+  useEffect(() => {
+    const styleElementId = 'dynamic-font-style';
+    let existingStyleElement = document.getElementById(styleElementId) as HTMLStyleElement | null;
+
+    if (formData.fontFileUrl && formData.id) {
+      const newFontFamily = `font-preview-${formData.id}`;
+      setDynamicFontFamily(newFontFamily);
+
+      if (!existingStyleElement) {
+        existingStyleElement = document.createElement('style');
+        existingStyleElement.id = styleElementId;
+        document.head.appendChild(existingStyleElement);
+      }
+
+      existingStyleElement.innerHTML = `
+        @font-face {
+          font-family: '${newFontFamily}';
+          src: url('${formData.fontFileUrl}');
+        }
+      `;
+    } else {
+      if (existingStyleElement) {
+        existingStyleElement.remove();
+      }
+      setDynamicFontFamily(null);
+    }
+
+    return () => {
+      // Cleanup on component unmount or if formData.id changes,
+      // potentially leaving the style tag for other instances if this logic were different.
+      // For simplicity here, we remove it if formData.id is cleared or on unmount.
+      if (formData.id && (!formData.fontFileUrl || !selectedFontId)) { // ensure it's removed if fontFileUrl is cleared for the current font
+          const styleToRemove = document.getElementById(styleElementId);
+          if (styleToRemove) {
+              styleToRemove.remove();
+          }
+          setDynamicFontFamily(null);
+      }
+    };
+  // Ensure selectedFontId is part of dependencies to handle deselection correctly
+  }, [formData.fontFileUrl, formData.id, selectedFontId]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -269,10 +312,19 @@ export const FontEditor: React.FC<FontEditorProps> = ({ fileUploadService }) => 
               </div>
               <div className="mt-1 p-2 border border-dashed border-gray-300 dark:border-gray-600 rounded-md text-center">
                 {formData.fontFileUrl ? (
-                  <div className="text-sm text-green-600 dark:text-green-400">
-                    <p>File caricato: <a href={formData.fontFileUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-green-800 dark:hover:text-green-200">{formData.fontFileUrl.split('/').pop()}</a></p>
-                    {/* TODO: Potremmo voler aggiungere un modo per visualizzare il font, ma è complesso */}
-                  </div>
+                  dynamicFontFamily ? (
+                    <div className="mt-2 p-2 border border-gray-200 dark:border-gray-500 rounded bg-white dark:bg-gray-800">
+                      <p style={{ fontFamily: dynamicFontFamily, fontSize: '20px' }} className="text-gray-800 dark:text-gray-200">
+                        Aa Bb Cc Dd Ee Ff Gg Hh Ii Jj Kk Ll Mm Nn Oo Pp Qq Rr Ss Tt Uu Vv Ww Xx Yy Zz
+                        <br />
+                        0 1 2 3 4 5 6 7 8 9
+                        <br />
+                        The quick brown fox jumps over the lazy dog.
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Font file selected. Preview loading...</p>
+                  )
                 ) : (
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     {isUploading ? 'Caricamento in corso...' : 'Nessun file font caricato.'}
