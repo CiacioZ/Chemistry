@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Dispatch, SetStateAction } from 'react';
-import { Node, Entity, EntityType, VERBS, CharacterDetails, ItemDetails, LocationDetails, AnyEntity, PREDEFINED_ENTITIES, ActionNode, StateNode } from '../types/index';
+import { Node, Entity, EntityType, VERBS, CharacterDetails, ItemDetails, LocationDetails, AnyEntity, PREDEFINED_ENTITIES, ActionNode, StateNode, NodeFlag } from '../types/index';
 import { v4 as uuidv4 } from 'uuid';
 import {
   Dialog,
@@ -153,6 +153,11 @@ import {
          });
        } else {
          setTempValues(node); // Per StateNode o altri tipi
+         // Assicurati che i flag siano inizializzati se è uno StateNode
+         if (node.type === 'state') {
+           const stateNode = node as StateNode;
+           setTempValues(prev => ({ ...prev, flags: stateNode.flags || [] }));
+         }
        }
      }
    }, [open, node]); // RIMOSSO entities dalle dipendenze
@@ -237,6 +242,43 @@ import {
      }
    };
  
+   const handleAddFlag = () => {
+     setTempValues(prev => {
+       const currentNode = prev as Partial<Node>; // Manteniamo Partial<Node> per coerenza
+       if (currentNode.type !== 'state') return currentNode; // Non dovrebbe succedere, ma per sicurezza
+ 
+       const currentFlags = (currentNode as Partial<StateNode>).flags || [];
+       const newFlags = [...currentFlags, { name: '', value: false }];
+       return { ...currentNode, flags: newFlags } as Partial<StateNode>; // Cast esplicito
+     });
+   };
+
+   const handleFlagChange = (index: number, field: keyof NodeFlag, value: string | boolean) => {
+     setTempValues(prev => {
+       const currentNode = prev as Partial<Node>; // Manteniamo Partial<Node>
+       if (currentNode.type !== 'state') return currentNode;
+
+       const currentFlags = (currentNode as Partial<StateNode>).flags || [];
+       const newFlags = [...currentFlags];
+       if (newFlags[index]) {
+         (newFlags[index] as any)[field] = value; // Usare any qui è pragmatico per l'assegnazione dinamica dei campi
+       }
+       return { ...currentNode, flags: newFlags } as Partial<StateNode>; // Cast esplicito
+     });
+   };
+
+   const handleRemoveFlag = (index: number) => {
+     setTempValues(prev => {
+       const currentNode = prev as Partial<Node>; // Manteniamo Partial<Node>
+       if (currentNode.type !== 'state') return currentNode;
+
+       const currentFlags = (currentNode as Partial<StateNode>).flags || [];
+       const newFlags = [...currentFlags];
+       newFlags.splice(index, 1);
+       return { ...currentNode, flags: newFlags } as Partial<StateNode>; // Cast esplicito
+     });
+   };
+ 
    const handleDialogSave = () => {
      if (node) {
          // Prima di salvare, assicurarsi che i valori nelle dropdown siano ID GUID.
@@ -248,10 +290,8 @@ import {
      }
    };
  
-   if (!node) return null;
- 
    // Determina i tipi di entità per il campo 'to' basati sul verbo corrente
-   const toEntityTypes = node.type === 'action' ? getToEntityTypes((tempValues as Partial<ActionNode>).verb || '') : [];
+   const toEntityTypes = node && node.type === 'action' ? getToEntityTypes((tempValues as Partial<ActionNode>).verb || '') : [];
    const defaultFromValue = resolveEntityId('SOMEONE', entities); 
  
    return (
@@ -264,7 +304,7 @@ import {
        <DialogContent>
          <DialogHeader>
            <DialogTitle>
-             Edit {node.type === 'action' ? 'Action' : 'State'}
+             Edit {node?.type === 'action' ? 'Action' : 'State'}
            </DialogTitle>
          </DialogHeader>
          <div className="mt-4">
@@ -278,7 +318,7 @@ import {
              />
            </div>
  
-           {node.type === 'action' ? (
+           {node?.type === 'action' ? (
              <div className="space-y-4">
                <div>
                  <label className="text-sm font-medium">From</label>
@@ -365,6 +405,41 @@ import {
                />
              </div>
            )}
+           {node?.type === 'state' && (
+            <div className="mt-4 space-y-2">
+              <div className="flex justify-between items-center">
+                <label className="text-sm font-medium">Flags</label>
+                <button onClick={handleAddFlag} className="px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-xs">
+                  + Add Flag
+                </button>
+              </div>
+              {(tempValues as Partial<StateNode>).flags?.map((flag, index) => (
+                <div key={index} className="flex items-center space-x-2 p-2 border rounded bg-gray-50 dark:bg-gray-900">
+                  <input
+                    type="text"
+                    placeholder="Flag name"
+                    value={flag.name}
+                    onChange={(e) => handleFlagChange(index, 'name', e.target.value)}
+                    className="flex-grow p-1 border rounded bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white text-sm"
+                  />
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={flag.value}
+                      onChange={(e) => handleFlagChange(index, 'value', e.target.checked)}
+                      className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                    />
+                    <label className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                      {flag.value ? 'True' : 'False'}
+                    </label>
+                  </div>
+                  <button onClick={() => handleRemoveFlag(index)} className="p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 rounded-full hover:bg-red-100 dark:hover:bg-red-700/50 text-xs">
+                    X
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
          </div>
  
          <div className="mt-6 flex justify-end space-x-2">

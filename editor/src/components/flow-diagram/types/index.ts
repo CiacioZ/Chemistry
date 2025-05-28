@@ -44,10 +44,17 @@ export interface Position {
     script?: string;  // Script da eseguire
   }
   
+  // Interfaccia per un singolo flag di nodo
+  export interface NodeFlag {
+    name: string;
+    value: boolean;
+  }
+  
   // Interfaccia specifica per i nodi di tipo State
   export interface StateNode extends BaseNode {
     type: 'state';
     description: string;  // Descrizione dello stato
+    flags?: NodeFlag[]; // Array di flag per lo stato
   }
   
   // Tipo unione per rappresentare qualsiasi tipo di nodo
