@@ -13,7 +13,9 @@ import {
      case 'Talk to': return ['Character'];
      case 'Get': return ['Item'];
      case 'Go to': return ['Location'];
+     case 'Look at': return ['Item', 'Character'];
      case 'Interact with': return ['Character', 'Item'];
+     case 'Move to': return ['Location'];
      default: return ['Character'];
    }
  };

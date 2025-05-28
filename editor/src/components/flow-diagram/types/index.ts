@@ -240,5 +240,5 @@ export const PREDEFINED_ENTITIES: AnyEntity[] = [
     }
 ];
 
-export const VERBS = ['Talk to', 'Go to', 'Interact with'] as const;
+export const VERBS = ['Talk to', 'Go to', 'Interact with', 'Look at', 'Move to'] as const;
 export type VerbType = typeof VERBS[number];
