@@ -3,11 +3,13 @@ package logic
 import (
 	"bytes"
 	"chemistry/engine/model"
+	"encoding/gob"
 	"fmt"
 	"image"
 	"image/color"
 	"log"
 	"math"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -29,6 +31,26 @@ func NewGame() Game {
 		data:  initGameData(),
 		state: initGameState(),
 	}
+}
+
+func (g *Game) LoadGameData(filePath string) error {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return fmt.Errorf("error opening game data file %s: %w", filePath, err)
+	}
+	defer file.Close()
+
+	var gameData model.PackagedGameData
+	decoder := gob.NewDecoder(file)
+	err = decoder.Decode(&gameData)
+	if err != nil {
+		return fmt.Errorf("error decoding game data from %s: %w", filePath, err)
+	}
+
+	//TODO: Maps PackagedGameData to gameData
+
+	log.Printf("Successfully loaded game data for project: %s\n", gameData.ProjectName)
+	return nil
 }
 
 func (g *Game) Update() error {

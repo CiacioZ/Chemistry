@@ -1,7 +1,6 @@
 package main
 
 import (
-	"chemistry/engine/data"
 	"chemistry/engine/logic"
 	"log"
 
@@ -14,10 +13,12 @@ func init() {
 
 	game = logic.NewGame()
 
-	data.InitGenericData(&game)
-	data.InitCustomData(&game)
+	game.LoadGameData("demo_packaged.data")
 
-	//game.ExecuteScript("intro")
+	//data.InitGenericData(&game)
+	//data.InitCustomData(&game)
+
+	game.ExecuteScript("intro")
 }
 
 func main() {
