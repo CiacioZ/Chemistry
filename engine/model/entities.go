@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"image"
 	"log"
-
-	"github.com/google/uuid"
 )
 
 var DoNothing = func() {}
@@ -155,10 +153,10 @@ func (l Location) GetLayers() []Layer {
 	return l.layers
 }
 
-func NewCharacter(name string, talkColor Color) Character {
+func NewCharacter(id string, name string, talkColor Color) Character {
 	data := Character{
 		Entity: Entity{
-			ID:   uuid.New().String(),
+			ID:   id,
 			Type: CHARACTER,
 			Name: name,
 		},
@@ -169,10 +167,10 @@ func NewCharacter(name string, talkColor Color) Character {
 	return data
 }
 
-func NewLocation(name string, background []byte) Location {
+func NewLocation(id string, name string, background []byte) Location {
 	data := Location{
 		Entity: Entity{
-			ID:   uuid.New().String(),
+			ID:   id,
 			Type: LOCATION,
 			Name: name,
 		},
@@ -195,10 +193,10 @@ func (l *Location) AddWalkableArea(area WalkableArea) {
 	l.walkableAreas = append(l.walkableAreas, area)
 }
 
-func NewItem(name string, useWith bool, pickable bool, sprite []byte) Item {
+func NewItem(id string, name string, useWith bool, pickable bool, sprite []byte) Item {
 	data := Item{
 		Entity: Entity{
-			ID:   uuid.New().String(),
+			ID:   id,
 			Type: ITEM,
 			Name: name,
 		},
