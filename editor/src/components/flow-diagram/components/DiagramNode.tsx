@@ -1,6 +1,6 @@
 import React from 'react';
 import { Edit2, Trash2 } from 'lucide-react';
-import { Node, Entity, ActionNode } from '../types/index';
+import { Node, Entity, ActionNode, StateNode } from '../types/index';
 import { ConnectionPoint } from './ConnectionPoint';
 
 interface DiagramNodeProps {
@@ -73,11 +73,29 @@ export const DiagramNode: React.FC<DiagramNodeProps> = ({
 
   const renderStateContent = (node: Node) => {
     if (node.type !== 'state') return null;
-    
+    const stateNode = node as StateNode;
+
     return (
-      <span className="text-sm text-gray-600">
-        {node.description || 'State'}
-      </span>
+      <div className="space-y-1">
+        <p className="text-sm text-gray-700 font-medium">
+          {stateNode.description || 'State'}
+        </p>
+        {stateNode.flags && stateNode.flags.length > 0 && (
+          <div className="mt-2 pt-2 border-t border-gray-200">
+            <h4 className="text-xs font-semibold text-gray-500 mb-1">Flags:</h4>
+            <ul className="space-y-0.5">
+              {stateNode.flags.map((flag, index) => (
+                <li key={index} className="flex justify-between text-xs">
+                  <span className="text-gray-600">{flag.name}:</span>
+                  <span className={flag.value ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
+                    {flag.value.toString()}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
     );
   };
 

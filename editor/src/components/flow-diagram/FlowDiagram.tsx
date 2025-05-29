@@ -94,21 +94,40 @@ const FlowDiagram: React.FC = () => {
   };
 
   const endConnection = (targetId: string) => {
+    console.log(`[FlowDiagram] endConnection called. Target ID: ${targetId}, Source Node: ${connectingNode.sourceNode}`);
+
     if (connectingNode.sourceNode && 
         connectingNode.sourceNode !== targetId && 
         mousePosition.x !== 0 && 
         mousePosition.y !== 0) {
       
-      // Controlliamo se il nodo target non ha già connessioni in input dal nodo sorgente
-      const targetNode = nodes.find(n => n.id === targetId);
-      if (targetNode && !targetNode.connections.in.includes(connectingNode.sourceNode)) {
+      const sourceNodeInstance = nodes.find(n => n.id === connectingNode.sourceNode);
+      const targetNodeInstance = nodes.find(n => n.id === targetId);
+
+      console.log("[FlowDiagram] Source Node instance:", JSON.parse(JSON.stringify(sourceNodeInstance)));
+      console.log("[FlowDiagram] Target Node instance:", JSON.parse(JSON.stringify(targetNodeInstance)));
+
+      // Condizione per prevenire la creazione di un edge duplicato IDENTICO
+      // (stessa sorgente, stesso target)
+      if (sourceNodeInstance && targetNodeInstance && 
+          !sourceNodeInstance.connections.out.includes(targetId)) { // Verifica se 'out' della sorgente include già il target
+        
+        console.log(`[FlowDiagram] Creating new connection from ${connectingNode.sourceNode} to ${targetId}`);
         const newNodes = diagramOperations.createConnection(
-          nodes,
+          nodes, // Passa lo stato corrente dei nodi
           connectingNode.sourceNode,
           targetId
         );
         pushNodes(newNodes);
+      } else {
+        if (!sourceNodeInstance || !targetNodeInstance) {
+          console.warn("[FlowDiagram] Skipping connection: Source or Target node not found.");
+        } else {
+          console.log(`[FlowDiagram] Skipping connection: Connection from ${connectingNode.sourceNode} to ${targetId} already exists or invalid.`);
+        }
       }
+    } else {
+      console.log("[FlowDiagram] endConnection: Conditions not met to create connection (source/target same, mouse position zero, etc).");
     }
     
     // Reset degli stati

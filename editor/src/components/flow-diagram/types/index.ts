@@ -29,7 +29,7 @@ export interface Position {
     position: NodePosition;    // Posizione del nodo nell'area di lavoro
     connections: {
       in: string[];           // Array di ID dei nodi che si collegano a questo nodo
-      out: string | null;     // ID del nodo a cui questo nodo si collega (null se non collegato)
+      out: string[];     // MODIFICATO: ID del nodo a cui questo nodo si collega (null se non collegato)
     };
   }
   
