@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 // Aggiorniamo il tipo per includere 'Graph'
 export type EditorTabType = 'Graph' | 'Locations' | 'Items' | 'Characters' | 'Scripts' | 'Fonts';
@@ -14,6 +14,13 @@ interface EditorTabsProps {
 
 const EditorTabs: React.FC<EditorTabsProps> = ({ onTabChange, initialTab = 'Graph', tabs }) => {
   const [activeTab, setActiveTab] = useState<EditorTabType>(initialTab);
+
+  // Sincronizza activeTab con initialTab quando initialTab cambia
+  useEffect(() => {
+    if (initialTab && initialTab !== activeTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab, activeTab]); // Aggiunto activeTab alle dipendenze per evitare loop se non necessario
 
   const handleTabClick = (tab: EditorTabType) => {
     setActiveTab(tab);
