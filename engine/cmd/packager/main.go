@@ -187,7 +187,6 @@ type PackagedGameData struct {
 	Items        []Item
 	Fonts        []Font
 	Scripts      []Script
-	Actions      []Action // Includi se usi le entità Action
 }
 
 func main() {
@@ -239,7 +238,6 @@ func main() {
 	var items []Item
 	var fonts []Font
 	var scripts []Script
-	var actions []Action
 
 	for _, genericEntity := range projectData.Entities {
 		switch genericEntity.Type {
@@ -288,22 +286,13 @@ func main() {
 				}
 			}
 			scripts = append(scripts, Script{ID: genericEntity.ID, Type: genericEntity.Type, Name: genericEntity.Name, Internal: genericEntity.Internal, Details: &details})
-		case "Action":
-			var details ActionDetails
-			if len(genericEntity.DetailsRaw) > 0 && string(genericEntity.DetailsRaw) != "null" {
-				if err := json.Unmarshal(genericEntity.DetailsRaw, &details); err != nil {
-					log.Printf("Error unmarshalling ActionDetails for entity %s: %v\n", genericEntity.ID, err)
-					continue
-				}
-			}
-			actions = append(actions, Action{ID: genericEntity.ID, Type: genericEntity.Type, Name: genericEntity.Name, Internal: genericEntity.Internal, Details: &details})
 		default:
 			log.Printf("Unknown entity type '%s' for entity ID %s, Name %s\n", genericEntity.Type, genericEntity.ID, genericEntity.Name)
 		}
 	}
 
-	log.Printf("Parsed Locations: %d, Characters: %d, Items: %d, Fonts: %d, Scripts: %d, Actions: %d\n",
-		len(locations), len(characters), len(items), len(fonts), len(scripts), len(actions))
+	log.Printf("Parsed Locations: %d, Characters: %d, Items: %d, Fonts: %d, Scripts: %d\n",
+		len(locations), len(characters), len(items), len(fonts), len(scripts))
 
 	// Esempi di accesso ai dati parsati:
 	/*
@@ -333,7 +322,6 @@ func main() {
 		Items:        items,
 		Fonts:        fonts,
 		Scripts:      scripts,
-		Actions:      actions,
 	}
 
 	// Definire il percorso del file di output binario
