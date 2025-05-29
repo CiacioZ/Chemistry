@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/gob"
 	"encoding/json"
 	"fmt" // Per Go < 1.16, altrimenti usa io e os
 	"log"
@@ -176,17 +177,27 @@ type TypedNode struct {
 	Flags       []NodeFlag `json:"flags,omitempty"`
 }
 
+// Nuova struct per contenere tutti i dati da salvare con gob
+type PackagedGameData struct {
+	ProjectName  string
+	Version      string
+	DiagramNodes []TypedNode
+	Locations    []Location
+	Characters   []Character
+	Items        []Item
+	Fonts        []Font
+	Scripts      []Script
+	Actions      []Action // Includi se usi le entità Action
+}
+
 func main() {
-	// jsonFilePath := "engine/data/demo.json" // Assicurati che questo percorso sia corretto
-	// Per testare, potresti voler prendere il percorso da args
 	if len(os.Args) < 2 {
 		log.Fatalf("Usage: %s <path_to_json_file>", os.Args[0])
 	}
 	jsonFilePath := os.Args[1]
 
 	log.Printf("Reading project file from: %s\n", jsonFilePath)
-	// Usa os.ReadFile per Go >= 1.16, ioutil.ReadFile per versioni precedenti
-	jsonData, err := os.ReadFile(jsonFilePath)
+	jsonData, err := os.ReadFile(jsonFilePath) // os.ReadFile è per Go >= 1.16
 	if err != nil {
 		log.Fatalf("Error reading JSON file: %v\n", err)
 	}
@@ -228,6 +239,7 @@ func main() {
 	var items []Item
 	var fonts []Font
 	var scripts []Script
+	var actions []Action
 
 	for _, genericEntity := range projectData.Entities {
 		switch genericEntity.Type {
@@ -276,13 +288,22 @@ func main() {
 				}
 			}
 			scripts = append(scripts, Script{ID: genericEntity.ID, Type: genericEntity.Type, Name: genericEntity.Name, Internal: genericEntity.Internal, Details: &details})
+		case "Action":
+			var details ActionDetails
+			if len(genericEntity.DetailsRaw) > 0 && string(genericEntity.DetailsRaw) != "null" {
+				if err := json.Unmarshal(genericEntity.DetailsRaw, &details); err != nil {
+					log.Printf("Error unmarshalling ActionDetails for entity %s: %v\n", genericEntity.ID, err)
+					continue
+				}
+			}
+			actions = append(actions, Action{ID: genericEntity.ID, Type: genericEntity.Type, Name: genericEntity.Name, Internal: genericEntity.Internal, Details: &details})
 		default:
 			log.Printf("Unknown entity type '%s' for entity ID %s, Name %s\n", genericEntity.Type, genericEntity.ID, genericEntity.Name)
 		}
 	}
 
-	log.Printf("Parsed Locations: %d, Characters: %d, Items: %d, Fonts: %d, Scripts: %d\n",
-		len(locations), len(characters), len(items), len(fonts), len(scripts))
+	log.Printf("Parsed Locations: %d, Characters: %d, Items: %d, Fonts: %d, Scripts: %d, Actions: %d\n",
+		len(locations), len(characters), len(items), len(fonts), len(scripts), len(actions))
 
 	// Esempi di accesso ai dati parsati:
 	/*
@@ -302,9 +323,36 @@ func main() {
 		    }
 	*/
 
-	// TODO: Elaborare i dati parsati (parsedDiagramNodes, locations, characters, ecc.)
-	// e generare l'output desiderato (es. un file .go che definisce queste strutture come variabili,
-	// un file binario, o altro a seconda delle necessità del gioco).
+	// Creare l'oggetto PackagedGameData
+	gameDataToPackage := PackagedGameData{
+		ProjectName:  projectData.ProjectName,
+		Version:      projectData.Version,
+		DiagramNodes: parsedDiagramNodes,
+		Locations:    locations,
+		Characters:   characters,
+		Items:        items,
+		Fonts:        fonts,
+		Scripts:      scripts,
+		Actions:      actions,
+	}
 
-	log.Println("Packager finished processing JSON data.")
+	// Definire il percorso del file di output binario
+	outputFilePath := projectData.ProjectName + "_packaged.data" // Estensione .data o .gob o .bin
+	// Sostituisci caratteri non validi per i nomi di file se projectName può contenerli
+	// outputFilePath = strings.ReplaceAll(projectData.ProjectName, " ", "_") + "_packaged.data"
+
+	file, err := os.Create(outputFilePath)
+	if err != nil {
+		log.Fatalf("Error creating output file %s: %v", outputFilePath, err)
+	}
+	defer file.Close()
+
+	encoder := gob.NewEncoder(file)
+	err = encoder.Encode(gameDataToPackage)
+	if err != nil {
+		log.Fatalf("Error encoding data with gob: %v", err)
+	}
+
+	log.Printf("Game data successfully packaged to: %s\n", outputFilePath)
+	log.Println("Packager finished.")
 }
