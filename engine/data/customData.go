@@ -6,6 +6,8 @@ import (
 	"chemistry/engine/utils"
 	"embed"
 	"image"
+
+	"github.com/google/uuid"
 )
 
 var (
@@ -26,10 +28,10 @@ func InitCustomData(game *logic.Game) {
 
 	game.AddCursor("Cross", utils.ReadData(folderData, "images/cursors/cross.png"))
 
-	mainChar := model.NewCharacter("Guybrush", model.Color{
+	mainChar := model.NewCharacter(uuid.New().String(), "Guybrush", model.Color{
 		R: 255,
-		G: 50,
-		B: 50,
+		G: 255,
+		B: 255,
 	})
 	mainChar.Animations[string(model.IDLE_FACE_RIGHT)] = utils.ReadMultipleData(folderData, []string{"images/characters/guybrush/SLR.png"})
 	mainChar.Animations[string(model.IDLE_FACE_LEFT)] = utils.ReadMultipleData(folderData, []string{"images/characters/guybrush/SRL.png"})
@@ -41,19 +43,19 @@ func InitCustomData(game *logic.Game) {
 	mainChar.Animations[string(model.WALK_UP_TO_DOWN)] = utils.ReadMultipleData(folderData, []string{"images/characters/guybrush/WTD1.png", "images/characters/guybrush/WTD2.png", "images/characters/guybrush/WTD3.png", "images/characters/guybrush/WTD4.png", "images/characters/guybrush/WTD5.png", "images/characters/guybrush/WTD6.png"})
 	game.AddCharacter(mainChar)
 
-	location1 := model.NewLocation("Stanza di test 1", utils.ReadData(folderData, "images/backgrounds/background1.jpeg"))
-	location2 := model.NewLocation("Stanza di test 2", utils.ReadData(folderData, "images/backgrounds/background2.jpeg"))
+	location1 := model.NewLocation(uuid.New().String(), "Stanza di test 1", utils.ReadData(folderData, "images/backgrounds/background1.jpeg"))
+	location2 := model.NewLocation(uuid.New().String(), "Stanza di test 2", utils.ReadData(folderData, "images/backgrounds/background2.jpeg"))
 
-	itemNote := model.NewItem("Note", false, true, utils.ReadData(folderData, "images/items/Note.png"))
+	itemNote := model.NewItem(uuid.New().String(), "Note", false, true, utils.ReadData(folderData, "images/items/Note.png"))
 	game.AddItem(itemNote)
 
-	itemKey := model.NewItem("Key", true, true, utils.ReadData(folderData, "images/items/Key.png"))
+	itemKey := model.NewItem(uuid.New().String(), "Key", true, true, utils.ReadData(folderData, "images/items/Key.png"))
 	game.AddItem(itemKey)
 
-	itemDoorToLocation2 := model.NewItem("Door to 2", false, false, utils.ReadData(folderData, "images/items/Note.png"))
+	itemDoorToLocation2 := model.NewItem(uuid.New().String(), "Door to 2", false, false, utils.ReadData(folderData, "images/items/Note.png"))
 	game.AddItem(itemDoorToLocation2)
 
-	itemDoorToLocation1 := model.NewItem("Door to 1", false, false, utils.ReadData(folderData, "images/items/Note.png"))
+	itemDoorToLocation1 := model.NewItem(uuid.New().String(), "Door to 1", false, false, utils.ReadData(folderData, "images/items/Note.png"))
 	game.AddItem(itemDoorToLocation1)
 
 	location1.AddItem(itemNote.ID, model.ItemLocation{
