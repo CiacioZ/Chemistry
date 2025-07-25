@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 
 // Aggiorniamo il tipo per includere 'Graph'
-export type EditorTabType = 'Graph' | 'Locations' | 'Items' | 'Characters' | 'Scripts' | 'Fonts';
+export type EditorTabType = 'Graph' | 'Locations' | 'Items' | 'Characters' | 'Scripts' | 'Fonts' | 'Cursors';
 
 interface EditorTabsProps {
   onTabChange: (tab: EditorTabType) => void;

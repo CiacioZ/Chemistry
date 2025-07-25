@@ -14,8 +14,9 @@ import { CharacterEditor } from '@/components/entity-editor/CharacterEditor';
 import { ScriptEditor } from '@/components/entity-editor/ScriptEditor';
 import { FontEditor } from '@/components/entity-editor/FontEditor';
 import { PREDEFINED_ENTITIES } from '@/components/flow-diagram/types/index'; // Questo import dovrebbe essere già presente
+import { CursorEditor } from '@/components/entity-editor/CursorEditor';
 
-const editorTabs: EditorTabType[] = ['Graph', 'Locations', 'Items', 'Characters', 'Scripts', 'Fonts'];
+const editorTabs: EditorTabType[] = ['Graph', 'Locations', 'Items', 'Characters', 'Scripts', 'Fonts', 'Cursors'];
 
 export default function EditorPage() {
   const [currentTab, setCurrentTab] = useState<EditorTabType>('Graph');
@@ -110,6 +111,8 @@ export default function EditorPage() {
         return <ScriptEditor />;
       case 'Fonts':
         return <FontEditor fileUploadService={dummyImageUploadService} />;
+      case 'Cursors':
+        return <CursorEditor />;
       default:
         return null;
     }

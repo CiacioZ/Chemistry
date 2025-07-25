@@ -12,6 +12,7 @@ import { PolygonEditor } from '../components/entity-editor/PolygonEditor';
 import { PlacementEditor } from '../components/entity-editor/PlacementEditor';
 import { FontEditor } from '../components/entity-editor/FontEditor';
 import { ScriptEditor } from '../components/entity-editor/ScriptEditor';
+import { CursorEditor } from '../components/entity-editor/CursorEditor';
 import { loadDiagram } from '../components/flow-diagram/utils/saveLoad'; // Importato loadDiagram
 import { ItemEntity, CharacterEntity, LocationEntity, LocationDetails } from '../components/flow-diagram/types/index'; // Corrected path and added LocationEntity, LocationDetails
 
@@ -24,6 +25,7 @@ const TABS = [
   { id: 'placement', label: 'Location Placement'},
   { id: 'fonts', label: 'Fonts' },
   { id: 'scripts', label: 'Scripts' },
+  { id: 'cursors', label: 'Cursors' }, // Nuova tab cursori
   { id: 'flow', label: 'Flow Diagram' },
 ];
 
@@ -122,6 +124,8 @@ const EditorTabs: React.FC = () => {
         return <FontEditor />;
       case 'scripts':
         return <ScriptEditor />;
+      case 'cursors':
+        return <CursorEditor />;
       case 'flow':
         return <FlowDiagram />;
       default:

@@ -11,6 +11,7 @@ interface CharacterData {
   name: string;
   description: string;
   animations: Animation[];
+  talkColor?: string;
 }
 
 export const CharacterEditor: React.FC = () => {
@@ -40,6 +41,7 @@ export const CharacterEditor: React.FC = () => {
           name: selectedEntity.name,
           description: selectedEntity.details?.description || '',
           animations: selectedEntity.details?.animations || [],
+          talkColor: selectedEntity.details?.talkColor || '#000000',
         });
       } else {
         setSelectedCharacterId(null);
@@ -91,6 +93,7 @@ export const CharacterEditor: React.FC = () => {
             ...(currentEntity.details || {}),
             description: formData.description || '',
             animations: formData.animations || [], // Aggiungi questa riga
+            talkColor: formData.talkColor || '#000000',
           },
         };
       }
@@ -104,10 +107,11 @@ export const CharacterEditor: React.FC = () => {
 
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
+    const { name, value, type } = e.target;
+    const checked = (e.target as HTMLInputElement).checked;
     setFormData(prevData => ({
       ...prevData,
-      [name]: value,
+      [name]: type === 'checkbox' ? checked : value,
     }));
     // L'useEffect che osserva formData gestirà il salvataggio.
   };
@@ -426,6 +430,18 @@ export const CharacterEditor: React.FC = () => {
               {(!formData.animations || formData.animations.length === 0) && (
                 <p className="text-gray-500 text-sm italic">Nessuna animazione definita</p>
               )}
+            </div>
+            {/* Colore dialogo (talk color) */}
+            <div className="mb-4">
+              <label className="block font-semibold mb-1">Colore dialogo (talk color)</label>
+              <input
+                type="color"
+                name="talkColor"
+                value={formData.talkColor || '#000000'}
+                onChange={handleChange}
+                className="w-12 h-8 p-0 border-0 bg-transparent cursor-pointer"
+                title="Colore del testo dei dialoghi"
+              />
             </div>
             {/* TODO: Aggiungere altri campi specifici per Character */}
             <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">

@@ -80,7 +80,7 @@ export interface Position {
     } | null;
   }
 
-export type EntityType = 'Character' | 'Item' | 'Location' | 'Action' | 'Font' | 'Script';
+export type EntityType = 'Character' | 'Item' | 'Location' | 'Action' | 'Font' | 'Script' | 'Cursor';
 
 export interface Entity {
   id: string;
@@ -110,6 +110,7 @@ export interface CharacterDetails {
   inventoryImageData?: string;
   animations?: Animation[];
   interactionSpot?: Point; // Aggiunto per il punto di interazione
+  talkColor?: string; // Colore del testo dei dialoghi (es: #RRGGBB)
 }
 
 export interface ItemDetails {
@@ -140,7 +141,12 @@ export interface ScriptDetails {
   scriptContent: string;
 }
 
-export type EntityDetails = CharacterDetails | ItemDetails | LocationDetails | ActionDetails | FontDetails | ScriptDetails;
+// Dettagli per il cursore
+export interface CursorDetails {
+  animations: Animation[];
+}
+
+export type EntityDetails = CharacterDetails | ItemDetails | LocationDetails | ActionDetails | FontDetails | ScriptDetails | CursorDetails;
 
 export interface Point {
   x: number;
@@ -185,8 +191,13 @@ export interface ScriptEntity extends Entity {
   details?: ScriptDetails;
 }
 
+export interface CursorEntity extends Entity {
+  type: 'Cursor';
+  details?: CursorDetails;
+}
+
 // Tipo Entity come unione discriminata basata sulle interfacce specifiche
-export type AnyEntity = CharacterEntity | ItemEntity | LocationEntity | ActionEntity | FontEntity | ScriptEntity;
+export type AnyEntity = CharacterEntity | ItemEntity | LocationEntity | ActionEntity | FontEntity | ScriptEntity | CursorEntity;
 
 // Placeholder for ActionDetails - define its fields as needed
 export interface ActionDetails {
@@ -243,6 +254,15 @@ export const PREDEFINED_ENTITIES: AnyEntity[] = [
             backgroundImage: '', // Changed from null to empty string
             // walkableAreas: [], // Changed to walkableArea
             walkableArea: [],
+        }
+    },
+    {
+        id: uuidv4(), // Generate GUID
+        type: 'Cursor',
+        name: 'DEFAULT_CURSOR',
+        internal: true,
+        details: {
+            animations: [],
         }
     }
 ];
