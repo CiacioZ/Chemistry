@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback, ChangeEvent } from 'react';
 import { useDiagramContext } from '../flow-diagram/contexts/DiagramContext';
 import { Entity, CharacterEntity, Animation, AnimationFrame } from '../flow-diagram/types/index';
 import { v4 as uuidv4 } from 'uuid';
@@ -30,6 +30,11 @@ export const CharacterEditor: React.FC = () => {
 
   const [selectedAnimationIndex, setSelectedAnimationIndex] = useState<number | null>(null);
   const [selectedFrameIndex, setSelectedFrameIndex] = useState<number | null>(null);
+
+  // Ref per input file frame
+  const frameFileInputRef = useRef<HTMLInputElement>(null);
+  const [pendingFrameAnimationIndex, setPendingFrameAnimationIndex] = useState<number | null>(null);
+  const [pendingFrameIndex, setPendingFrameIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (selectedCharacterId) {
@@ -197,34 +202,56 @@ export const CharacterEditor: React.FC = () => {
     }));
   };
 
+  // Funzione per aggiungere un nuovo frame
   const handleAddFrame = (animationIndex: number) => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const imageData = event.target?.result as string;
-          const newFrame: AnimationFrame = {
-            imageData,
-            duration: 100 // Default 100ms
-          };
-          
-          setFormData(prev => ({
-            ...prev,
-            animations: prev.animations?.map((anim, i) => 
-              i === animationIndex 
-                ? { ...anim, frames: [...anim.frames, newFrame] }
-                : anim
-            ) || []
-          }));
-        };
-        reader.readAsDataURL(file);
-      }
+    setPendingFrameAnimationIndex(animationIndex);
+    setPendingFrameIndex(null);
+    frameFileInputRef.current?.click();
+  };
+
+  // Funzione per sostituire l'immagine di un frame esistente
+  const handleReplaceFrameImage = (animationIndex: number, frameIndex: number) => {
+    setPendingFrameAnimationIndex(animationIndex);
+    setPendingFrameIndex(frameIndex);
+    frameFileInputRef.current?.click();
+  };
+
+  // Gestione upload immagine frame (aggiunta o sostituzione)
+  const handleFrameFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || pendingFrameAnimationIndex === null) {
+      setPendingFrameAnimationIndex(null);
+      setPendingFrameIndex(null);
+      event.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const imageData = reader.result as string;
+      setFormData((prev: Partial<CharacterData>) => ({
+        ...prev,
+        animations: (prev.animations || []).map((anim: Animation, i: number) => {
+          if (i !== pendingFrameAnimationIndex) return anim;
+          if (pendingFrameIndex === null) {
+            // Aggiungi nuovo frame
+            return {
+              ...anim,
+              frames: [...anim.frames, { imageData, duration: 100 }],
+            };
+          } else {
+            // Sostituisci immagine frame esistente
+            return {
+              ...anim,
+              frames: anim.frames.map((frame, j) => j === pendingFrameIndex ? { ...frame, imageData } : frame),
+            };
+          }
+        }),
+      }));
+      setPendingFrameAnimationIndex(null);
+      setPendingFrameIndex(null);
+      event.target.value = '';
     };
-    input.click();
+    reader.readAsDataURL(file);
   };
 
   const handleDeleteFrame = (animationIndex: number, frameIndex: number) => {
@@ -385,16 +412,40 @@ export const CharacterEditor: React.FC = () => {
                   <div className="mb-2">
                     <button
                       type="button"
-                      onClick={() => handleAddFrame(animIndex)}
+                      onClick={(e) => {
+                        e.stopPropagation(); 
+                        handleAddFrame(animIndex);
+                        setSelectedAnimationIndex(animIndex);
+                      }}
                       className="px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-xs"
                     >
                       + Aggiungi Frame
                     </button>
+                    {/* Input file nascosto per upload frame */}
+                    {selectedAnimationIndex === animIndex && (
+                      <input
+                        type="file"
+                        ref={frameFileInputRef}
+                        onChange={handleFrameFileChange}
+                        accept="image/*"
+                        className="hidden"
+                      />
+                    )}
                   </div>
                   
                   <div className="grid grid-cols-6 gap-2">
                     {animation.frames.map((frame, frameIndex) => (
-                      <div key={frameIndex} className="relative border rounded p-1 bg-white dark:bg-gray-800 flex flex-col items-center">
+                      <div 
+                        key={frameIndex} 
+                        className={`relative border rounded p-1 flex flex-col items-center shadow-sm hover:shadow-md transition-shadow cursor-pointer
+                                          ${selectedAnimationIndex === animIndex && selectedFrameIndex === frameIndex ? 'ring-2 ring-indigo-500 bg-indigo-100 dark:bg-indigo-800/50' : 'bg-white dark:bg-gray-600 hover:bg-gray-50 dark:hover:bg-gray-500/50'}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedAnimationIndex(animIndex);
+                          setSelectedFrameIndex(frameIndex);
+                          handleReplaceFrameImage(animIndex, frameIndex);
+                        }}
+                      >
                         <img
                           src={frame.imageData}
                           alt={`Frame ${frameIndex + 1}`}

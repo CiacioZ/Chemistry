@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'; // Added useRef, useCallback
+import React, { useState, useEffect, useMemo, useRef, useCallback, ChangeEvent } from 'react'; // Added useRef, useCallback
 import { useDiagramContext } from '../flow-diagram/contexts/DiagramContext';
 import { Entity, ItemEntity, Animation, AnimationFrame } from '../flow-diagram/types/index'; // Aggiunto ItemEntity, Animation, AnimationFrame
 import { v4 as uuidv4 } from 'uuid'; // Import uuid
@@ -283,73 +283,61 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ imageUploadService }) =>
     }));
   };
 
+  // Ref per input file frame
+  const frameFileInputRef = useRef<HTMLInputElement>(null);
+  const [pendingFrameAnimationIndex, setPendingFrameAnimationIndex] = useState<number | null>(null);
+  const [pendingFrameIndex, setPendingFrameIndex] = useState<number | null>(null);
+
+  // Funzione per aggiungere un nuovo frame
   const handleAddFrame = (animationIndex: number) => {
-    // Utilizza imageUploadService se fornito, altrimenti simula come in CharacterEditor
-    if (!imageUploadService) {
-      console.warn("imageUploadService not available in ItemEditor for handleAddFrame. Simulating file input.");
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*';
-      input.onchange = (e) => {
-        const file = (e.target as HTMLInputElement).files?.[0];
-        if (file) {
-          const reader = new FileReader();
-          reader.onload = (event) => {
-            const imageData = event.target?.result as string;
-            const newFrame: AnimationFrame = {
-              imageData,
-              duration: 100 // Default 100ms
-            };
-            setFormData(prev => {
-              const updatedAnimations = prev.animations?.map((anim, i) => 
-                i === animationIndex 
-                  ? { ...anim, frames: [...anim.frames, newFrame] }
-                  : anim
-              ) || [];
-              return { ...prev, animations: updatedAnimations };
-            });
-            setSelectedAnimationIndex(animationIndex); // Seleziona l'animazione a cui è stato aggiunto il frame
-            setSelectedFrameIndex(null); // Deseleziona qualsiasi frame precedentemente selezionato
-          };
-          reader.readAsDataURL(file);
-        }
-      };
-      input.click();
+    setPendingFrameAnimationIndex(animationIndex);
+    setPendingFrameIndex(null);
+    frameFileInputRef.current?.click();
+  };
+
+  // Funzione per sostituire l'immagine di un frame esistente
+  const handleReplaceFrameImage = (animationIndex: number, frameIndex: number) => {
+    setPendingFrameAnimationIndex(animationIndex);
+    setPendingFrameIndex(frameIndex);
+    frameFileInputRef.current?.click();
+  };
+
+  // Gestione upload immagine frame (aggiunta o sostituzione)
+  const handleFrameFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || pendingFrameAnimationIndex === null) {
+      setPendingFrameAnimationIndex(null);
+      setPendingFrameIndex(null);
+      event.target.value = '';
       return;
     }
-
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        //setIsUploading(true); // Potresti voler uno stato di caricamento specifico per i frame
-        try {
-          const imageData = await imageUploadService(file);
-          const newFrame: AnimationFrame = {
-            imageData,
-            duration: 100
-          };
-          setFormData(prev => {
-            const updatedAnimations = prev.animations?.map((anim, i) => 
-              i === animationIndex 
-                ? { ...anim, frames: [...anim.frames, newFrame] }
-                : anim
-            ) || [];
-            return { ...prev, animations: updatedAnimations };
-          });
-          setSelectedAnimationIndex(animationIndex); // Seleziona l'animazione a cui è stato aggiunto il frame
-          setSelectedFrameIndex(null); // Deseleziona qualsiasi frame precedentemente selezionato
-        } catch (error) {
-          console.error("Error uploading frame image:", error);
-          alert("Errore durante il caricamento dell'immagine del frame.");
-        } finally {
-          //setIsUploading(false);
-        }
-      }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const imageData = reader.result as string;
+      setFormData((prev: Partial<ItemData>) => ({
+        ...prev,
+        animations: (prev.animations || []).map((anim: Animation, i: number) => {
+          if (i !== pendingFrameAnimationIndex) return anim;
+          if (pendingFrameIndex === null) {
+            // Aggiungi nuovo frame
+            return {
+              ...anim,
+              frames: [...anim.frames, { imageData, duration: 100 }],
+            };
+          } else {
+            // Sostituisci immagine frame esistente
+            return {
+              ...anim,
+              frames: anim.frames.map((frame, j) => j === pendingFrameIndex ? { ...frame, imageData } : frame),
+            };
+          }
+        }),
+      }));
+      setPendingFrameAnimationIndex(null);
+      setPendingFrameIndex(null);
+      event.target.value = '';
     };
-    input.click();
+    reader.readAsDataURL(file);
   };
 
   const handleDeleteFrame = (animationIndex: number, frameIndex: number) => {
@@ -690,6 +678,16 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ imageUploadService }) =>
                         >
                           + Aggiungi Frame
                         </button>
+                        {/* Input file nascosto per upload frame */}
+                        {selectedAnimationIndex === animIndex && (
+                          <input
+                            type="file"
+                            ref={frameFileInputRef}
+                            onChange={handleFrameFileChange}
+                            accept="image/*"
+                            className="hidden"
+                          />
+                        )}
                       </div>
                       
                       {/* Inline Frame Grid */}
@@ -707,6 +705,7 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ imageUploadService }) =>
                                 e.stopPropagation();
                                 setSelectedAnimationIndex(animIndex);
                                 setSelectedFrameIndex(frameIndex);
+                                handleReplaceFrameImage(animIndex, frameIndex);
                               }}
                             >
                               <div className="w-20 h-20 bg-gray-200 dark:bg-gray-500 rounded mb-1 flex items-center justify-center overflow-hidden">

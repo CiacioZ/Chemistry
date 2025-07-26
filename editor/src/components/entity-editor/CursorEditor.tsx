@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef, useCallback, ChangeEvent } from 'react';
 import { useDiagramContext } from '../flow-diagram/contexts/DiagramContext';
-import { Entity, CursorEntity, Animation } from '../flow-diagram/types/index';
+import { Entity, CursorEntity, Animation, AnimationFrame } from '../flow-diagram/types/index';
 import { v4 as uuidv4 } from 'uuid';
 
 interface CursorData {
@@ -24,6 +24,10 @@ export const CursorEditor: React.FC = () => {
   const isInitialDataLoad = useRef(false);
   const [selectedAnimationIndex, setSelectedAnimationIndex] = useState<number | null>(null);
   const [selectedFrameIndex, setSelectedFrameIndex] = useState<number | null>(null);
+  // Ref per input file frame
+  const frameFileInputRef = useRef<HTMLInputElement>(null);
+  const [pendingFrameAnimationIndex, setPendingFrameAnimationIndex] = useState<number | null>(null);
+  const [pendingFrameIndex, setPendingFrameIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (selectedCursorId) {
@@ -154,11 +158,56 @@ export const CursorEditor: React.FC = () => {
     }));
   };
 
+  // Funzione per aggiungere un nuovo frame (come prima)
   const handleAddFrame = (animationIndex: number) => {
-    setFormData((prev: Partial<CursorData>) => ({
-      ...prev,
-      animations: (prev.animations || []).map((anim: Animation, i: number) => i === animationIndex ? { ...anim, frames: [...anim.frames, { imageData: '', duration: 100 }] } : anim),
-    }));
+    setPendingFrameAnimationIndex(animationIndex);
+    setPendingFrameIndex(null);
+    frameFileInputRef.current?.click();
+  };
+
+  // Funzione per sostituire l'immagine di un frame esistente
+  const handleReplaceFrameImage = (animationIndex: number, frameIndex: number) => {
+    setPendingFrameAnimationIndex(animationIndex);
+    setPendingFrameIndex(frameIndex);
+    frameFileInputRef.current?.click();
+  };
+
+  // Gestione upload immagine frame (aggiunta o sostituzione)
+  const handleFrameFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || pendingFrameAnimationIndex === null) {
+      setPendingFrameAnimationIndex(null);
+      setPendingFrameIndex(null);
+      event.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const imageData = reader.result as string;
+      setFormData((prev: Partial<CursorData>) => ({
+        ...prev,
+        animations: (prev.animations || []).map((anim: Animation, i: number) => {
+          if (i !== pendingFrameAnimationIndex) return anim;
+          if (pendingFrameIndex === null) {
+            // Aggiungi nuovo frame
+            return {
+              ...anim,
+              frames: [...anim.frames, { imageData, duration: 100 }],
+            };
+          } else {
+            // Sostituisci immagine frame esistente
+            return {
+              ...anim,
+              frames: anim.frames.map((frame, j) => j === pendingFrameIndex ? { ...frame, imageData } : frame),
+            };
+          }
+        }),
+      }));
+      setPendingFrameAnimationIndex(null);
+      setPendingFrameIndex(null);
+      event.target.value = '';
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleDeleteFrame = (animationIndex: number, frameIndex: number) => {
@@ -173,78 +222,211 @@ export const CursorEditor: React.FC = () => {
       ...prev,
       animations: (prev.animations || []).map((anim: Animation, i: number) => i === animationIndex ? {
         ...anim,
-        frames: anim.frames.map((frame: { duration?: number }, j: number) => j === frameIndex ? { ...frame, duration } : frame),
+        frames: anim.frames.map((frame: AnimationFrame, j: number) => j === frameIndex ? { ...frame, duration } : frame),
       } : anim),
     }));
   };
 
   // Render
   return (
-    <div className="flex flex-row gap-6">
-      {/* Lista cursori */}
-      <div className="w-1/4 bg-white dark:bg-gray-800 rounded shadow p-4">
-        <div className="flex justify-between items-center mb-2">
-          <h2 className="font-bold text-lg">Cursori</h2>
-          <button onClick={handleCreateCursor} className="px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-sm">+ Nuovo</button>
+    <div className="flex h-full space-x-4">
+      {/* Colonna Sinistra: Lista dei Cursori */}
+      <div className="w-1/3 border rounded-md shadow-sm p-4 overflow-y-auto bg-gray-50 dark:bg-gray-700">
+        <div className="flex justify-between items-center mb-3">
+          <h3 className="text-lg font-semibold">Cursori</h3>
+          <button 
+            onClick={handleCreateCursor}
+            className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-sm"
+          >
+            + New Cursor
+          </button>
         </div>
         <ul>
           {graphCursors.map((cursor: CursorEntity) => (
             <li
               key={cursor.id}
-              className={`p-2 rounded cursor-pointer mb-1 ${selectedCursorId === cursor.id ? 'bg-blue-100 dark:bg-blue-900 font-bold' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}
-              onClick={() => handleSelectCursor(cursor.id)}
+              className={`flex justify-between items-center p-2 mb-1 rounded cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 ${
+                selectedCursorId === cursor.id ? 'bg-blue-100 dark:bg-blue-800 font-semibold' : ''
+              }`}
             >
-              {cursor.name}
+              <span onClick={() => handleSelectCursor(cursor.id)} className="flex-grow">
+                {cursor.name}
+              </span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteCursor(cursor.id);
+                }}
+                className="ml-2 p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 rounded-full hover:bg-red-100 dark:hover:bg-red-700/50 focus:outline-none"
+                aria-label={`Delete ${cursor.name}`}
+                title={`Delete ${cursor.name}`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </li>
           ))}
         </ul>
       </div>
-      {/* Form cursore selezionato */}
-      <div className="flex-1 bg-white dark:bg-gray-800 rounded shadow p-4">
-        {selectedCursorId && formData ? (
+
+      {/* Colonna Destra: Form di Editing Cursor */}
+      <div className="w-2/3 flex flex-col space-y-4 border rounded-md shadow-sm p-4 bg-white dark:bg-gray-800 overflow-y-auto">
+        <h2 className="text-xl font-semibold mb-4">Cursor Details</h2>
+        {selectedCursorId && formData.id ? (
           <>
-            <form className="space-y-4">
-              <div>
-                <label className="block font-semibold mb-1">Nome</label>
+            <form className="space-y-4 pt-2" onSubmit={(e) => e.preventDefault()}>
+              {/* ID (GUID) - Read-only */}
+              <div className="mb-4">
+                <label htmlFor="cursorId" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Cursor ID (GUID - Read-only)
+                </label>
                 <input
                   type="text"
-                  name="name"
-                  value={formData.name || ''}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => handleChange(e)}
-                  className="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white"
+                  id="cursorId"
+                  name="id"
+                  value={formData.id || ''}
+                  readOnly
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 dark:bg-gray-600 dark:border-gray-500 dark:text-gray-300"
                 />
               </div>
-              {/* Animazioni */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block font-semibold">Animazioni</label>
-                  <button type="button" onClick={handleAddAnimation} className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-xs">+ Aggiungi Animazione</button>
+              {/* Name */}
+              <div className="mb-4">
+                <label htmlFor="cursorName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Name
+                </label>
+                <input
+                  type="text"
+                  id="cursorName"
+                  name="name"
+                  value={formData.name || ''}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                />
+              </div>
+
+              {/* Sezione Animazioni */}
+              <div className="mb-6">
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">Animazioni</h3>
+                  <button
+                    type="button"
+                    onClick={handleAddAnimation}
+                    className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
+                  >
+                    + Nuova Animazione
+                  </button>
                 </div>
+
                 {(formData.animations && formData.animations.length > 0) ? (
                   formData.animations.map((animation: Animation, animIndex: number) => (
-                    <div key={animIndex} className={`mb-4 p-2 rounded border ${selectedAnimationIndex === animIndex ? 'border-blue-400' : 'border-gray-200 dark:border-gray-600'}`}
-                      onClick={() => { setSelectedAnimationIndex(animIndex); setSelectedFrameIndex(null); }}
+                    <div 
+                      key={animIndex} 
+                      className={`border rounded p-3 mb-3 ${selectedAnimationIndex === animIndex ? 'bg-blue-100 dark:bg-blue-700 ring-2 ring-blue-500' : 'bg-gray-50 dark:bg-gray-700/60 hover:bg-gray-100 dark:hover:bg-gray-600'}`}
                     >
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex justify-between items-center mb-2">
                         <input
                           type="text"
                           value={animation.name}
-                          onChange={(e: ChangeEvent<HTMLInputElement>) => handleAnimationNameChange(animIndex, e.target.value)}
-                          className="px-2 py-1 border rounded text-sm dark:bg-gray-700 dark:text-white"
+                          onClick={(e: React.MouseEvent<HTMLInputElement>) => {
+                            e.stopPropagation();
+                            setSelectedAnimationIndex(animIndex);
+                            setSelectedFrameIndex(null);
+                          }}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                            e.stopPropagation(); 
+                            handleAnimationNameChange(animIndex, e.target.value);
+                          }}
+                          className="font-medium bg-transparent border-b border-gray-400 dark:border-gray-500 focus:outline-none focus:border-blue-500 dark:text-white w-full mr-2 cursor-text"
+                          placeholder="Nome Animazione"
                         />
-                        <button type="button" onClick={(e: React.MouseEvent<HTMLButtonElement>) => { e.stopPropagation(); handleDeleteAnimation(animIndex); }} className="text-red-500 hover:text-red-700 text-xs ml-2">Elimina</button>
-                        <button type="button" onClick={(e: React.MouseEvent<HTMLButtonElement>) => { e.stopPropagation(); handleAddFrame(animIndex); }} className="text-green-500 hover:text-green-700 text-xs ml-2">+ Frame</button>
+                        <div 
+                          onClick={() => {
+                              setSelectedAnimationIndex(animIndex);
+                              setSelectedFrameIndex(null);
+                          }}
+                          className="flex-grow h-full cursor-pointer"
+                        ></div>
+                        <button
+                          type="button"
+                          onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                            e.stopPropagation();
+                            handleDeleteAnimation(animIndex);
+                          }}
+                          className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 text-sm p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-700/30 ml-2"
+                          title="Elimina Animazione"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
                       </div>
-                      {/* Lista frame */}
+
+                      <div className="mb-2 mt-1">
+                        <button
+                          type="button"
+                          onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                            e.stopPropagation(); 
+                            handleAddFrame(animIndex);
+                            setSelectedAnimationIndex(animIndex);
+                          }}
+                          className="px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-xs"
+                        >
+                          + Aggiungi Frame
+                        </button>
+                        {/* Input file nascosto per upload frame */}
+                        {selectedAnimationIndex === animIndex && (
+                          <input
+                            type="file"
+                            ref={frameFileInputRef}
+                            onChange={handleFrameFileChange}
+                            accept="image/*"
+                            className="hidden"
+                          />
+                        )}
+                      </div>
+                      
+                      {/* Inline Frame Grid */}
                       {animation.frames.length > 0 ? (
-                        <div className="flex flex-row gap-2 flex-wrap">
+                        <div 
+                            className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-1 mt-2 p-1 rounded bg-gray-100 dark:bg-gray-700/50"
+                            onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}
+                        >
                           {animation.frames.map((frame: { imageData: string; duration?: number }, frameIndex: number) => (
-                            <div key={frameIndex} className={`relative border rounded p-1 flex flex-col items-center shadow-sm hover:shadow-md transition-shadow cursor-pointer ${selectedAnimationIndex === animIndex && selectedFrameIndex === frameIndex ? 'ring-2 ring-indigo-500 bg-indigo-100 dark:bg-indigo-800/50' : 'bg-white dark:bg-gray-600 hover:bg-gray-50 dark:hover:bg-gray-500/50'}`}
-                              onClick={(e: React.MouseEvent<HTMLDivElement>) => { e.stopPropagation(); setSelectedAnimationIndex(animIndex); setSelectedFrameIndex(frameIndex); }}
+                            <div 
+                              key={frameIndex} 
+                              className={`relative border rounded p-1 flex flex-col items-center shadow-sm hover:shadow-md transition-shadow cursor-pointer
+                                          ${selectedAnimationIndex === animIndex && selectedFrameIndex === frameIndex ? 'ring-2 ring-indigo-500 bg-indigo-100 dark:bg-indigo-800/50' : 'bg-white dark:bg-gray-600 hover:bg-gray-50 dark:hover:bg-gray-500/50'}`}
+                              onClick={(e: React.MouseEvent<HTMLDivElement>) => {
+                                e.stopPropagation();
+                                setSelectedAnimationIndex(animIndex);
+                                setSelectedFrameIndex(frameIndex);
+                                handleReplaceFrameImage(animIndex, frameIndex);
+                              }}
                             >
                               <div className="w-20 h-20 bg-gray-200 dark:bg-gray-500 rounded mb-1 flex items-center justify-center overflow-hidden">
                                 {frame.imageData ? (
-                                  <img src={frame.imageData} alt={`Frame ${frameIndex + 1}`} className="w-full h-full object-contain" />
+                                  <img 
+                                    src={frame.imageData} 
+                                    alt={`Frame ${frameIndex + 1}`} 
+                                    className="w-full h-full object-contain"
+                                    onError={(e) => {
+                                        const target = e.currentTarget as HTMLImageElement;
+                                        target.style.display = 'none';
+                                        const parent = target.parentElement;
+                                        if (parent && !parent.querySelector('.frame-img-error')) {
+                                            const errorMsg = document.createElement('span');
+                                            errorMsg.textContent = 'Err';
+                                            errorMsg.className = 'frame-img-error text-[10px] text-red-500';
+                                            parent.appendChild(errorMsg);
+                                        }
+                                    }}
+                                    onLoad={(e) => {
+                                        const target = e.currentTarget as HTMLImageElement;
+                                        target.style.display = 'block';
+                                        const parent = target.parentElement;
+                                        const errorMsg = parent?.querySelector('.frame-img-error');
+                                        if (errorMsg) errorMsg.remove();
+                                    }}
+                                  />
                                 ) : (
                                   <span className="text-xs text-gray-400">No Img</span>
                                 )}
@@ -253,14 +435,25 @@ export const CursorEditor: React.FC = () => {
                                 <input
                                   type="number"
                                   value={frame.duration}
-                                  onChange={(e: ChangeEvent<HTMLInputElement>) => { e.stopPropagation(); handleFrameDurationChange(animIndex, frameIndex, parseInt(e.target.value, 10)); }}
+                                  onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                                    e.stopPropagation();
+                                    handleFrameDurationChange(animIndex, frameIndex, parseInt(e.target.value, 10));
+                                  }}
                                   onClick={(e: React.MouseEvent<HTMLInputElement>) => e.stopPropagation()}
                                   className="w-12 text-center px-0.5 py-0 border border-gray-300 dark:border-gray-500 rounded text-xs dark:bg-gray-700 dark:text-white focus:ring-indigo-500 focus:border-indigo-500"
                                   min="1"
                                 />
                                 <span className="text-xs text-gray-500 dark:text-gray-400 ml-0.5">ms</span>
                               </div>
-                              <button type="button" onClick={(e: React.MouseEvent<HTMLButtonElement>) => { e.stopPropagation(); handleDeleteFrame(animIndex, frameIndex); }} className="absolute top-0 right-0 text-red-500 hover:text-red-600 dark:text-red-300 dark:hover:text-red-200 p-0.5 rounded-full hover:bg-red-100 dark:hover:bg-red-700/40 focus:outline-none" title="Delete Frame">
+                              <button
+                                type="button"
+                                onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                                  e.stopPropagation();
+                                  handleDeleteFrame(animIndex, frameIndex);
+                                }}
+                                className="absolute top-0 right-0 text-red-500 hover:text-red-600 dark:text-red-300 dark:hover:text-red-200 p-0.5 rounded-full hover:bg-red-100 dark:hover:bg-red-700/40 focus:outline-none"
+                                title="Delete Frame"
+                              >
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.8" stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                               </button>
                             </div>
@@ -268,7 +461,9 @@ export const CursorEditor: React.FC = () => {
                         </div>
                       ) : (
                         <div onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()} className="cursor-default">
-                          <p className="text-gray-500 dark:text-gray-400 text-xs italic mt-2 py-1 px-2 rounded bg-gray-100 dark:bg-gray-700/50 text-center">Nessun frame. Clicca "+ Frame".</p>
+                           <p className="text-gray-500 dark:text-gray-400 text-xs italic mt-2 py-1 px-2 rounded bg-gray-100 dark:bg-gray-700/50 text-center">
+                            Nessun frame. Clicca "+ Aggiungi Frame".
+                          </p>
                         </div>
                       )}
                     </div>
@@ -277,15 +472,23 @@ export const CursorEditor: React.FC = () => {
                   <p className="text-gray-500 dark:text-gray-400 text-sm italic">Nessuna animazione definita per questo cursore.</p>
                 )}
               </div>
+
               {/* Bottoni Azioni */}
               <div className="flex justify-end space-x-2 mt-6">
-                <button type="button" onClick={() => handleDeleteCursor(selectedCursorId!)} className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600" disabled={!selectedCursorId}>Elimina Cursore</button>
+                <button 
+                  type="button" 
+                  onClick={() => handleDeleteCursor(selectedCursorId!)}
+                  className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+                  disabled={!selectedCursorId}
+                >
+                  Delete Cursor
+                </button>
               </div>
             </form>
           </>
         ) : (
           <div className="text-center text-gray-500 dark:text-gray-400 mt-10">
-            Seleziona un cursore dalla lista per modificarlo, oppure creane uno nuovo.
+            Select a cursor from the list to view or edit its details, or create a new one.
           </div>
         )}
       </div>
