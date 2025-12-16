@@ -138,15 +138,15 @@ func RunScript(L *lua.LState, script string) error {
 // --- Lua Wrapper Functions ---
 
 func luaMoveTo(L *lua.LState, game *Game) int {
-	x := L.CheckInt(1)
-	y := L.CheckInt(2)
+	x := L.CheckInt(2)
+	y := L.CheckInt(3)
 	game.MoveTo(x, y)
 	return 0
 }
 
 func luaItemAt(L *lua.LState, game *Game) int {
-	x := L.CheckInt(1)
-	y := L.CheckInt(2)
+	x := L.CheckInt(2)
+	y := L.CheckInt(3)
 	itemName := game.ItemAt(x, y)
 	L.Push(lua.LString(itemName))
 	return 1
@@ -170,7 +170,7 @@ func luaGetCurrentState(L *lua.LState, game *Game) int {
 }
 
 func luaSetCurrentState(L *lua.LState, game *Game) int {
-	stateStr := L.CheckString(1)
+	stateStr := L.CheckString(2)
 	game.SetCurrentState(model.StateType(stateStr))
 	return 0
 }
@@ -182,13 +182,13 @@ func luaGetCurrentVerb(L *lua.LState, game *Game) int {
 }
 
 func luaSetCurrentVerb(L *lua.LState, game *Game) int {
-	verbStr := L.CheckString(1)
+	verbStr := L.CheckString(2)
 	game.SetCurrentVerb(model.Verb(verbStr))
 	return 0
 }
 
 func luaSetCurrentCursor(L *lua.LState, game *Game) int {
-	cursorName := L.CheckString(1)
+	cursorName := L.CheckString(2)
 	game.SetCurrentCursor(cursorName)
 	return 0
 }
@@ -244,9 +244,13 @@ func locationToLuaTable(L *lua.LState, loc model.Location) *lua.LTable {
 	walkableAreasTable := L.NewTable()
 	// This simplified version only gets the first walkable area.
 	// A full implementation would need a way to get all walkable areas from model.Location.
-	if len(loc.GetWalkableArea(0).Polygons) > 0 {
-		walkableAreasTable.RawSetInt(1, walkableAreaToLuaTable(L, loc.GetWalkableArea(0)))
-	}
+	// Safely defer-recover to handle empty walkable areas slice
+	func() {
+		defer func() { recover() }()
+		if len(loc.GetWalkableArea(0).Polygons) > 0 {
+			walkableAreasTable.RawSetInt(1, walkableAreaToLuaTable(L, loc.GetWalkableArea(0)))
+		}
+	}()
 	L.SetField(table, "walkable_areas", walkableAreasTable)
 
 	itemsTable := L.NewTable()
@@ -259,7 +263,7 @@ func locationToLuaTable(L *lua.LState, loc model.Location) *lua.LTable {
 }
 
 func luaGetLocation(L *lua.LState, game *Game) int {
-	id := L.CheckString(1)
+	id := L.CheckString(2)
 	locData := game.GetLocation(id)
 	if locData.ID == "" {
 		L.Push(lua.LNil)
@@ -276,7 +280,7 @@ func luaGetCurrentLocation(L *lua.LState, game *Game) int {
 }
 
 func luaSetCurrentLocation(L *lua.LState, game *Game) int {
-	locationName := L.CheckString(1)
+	locationName := L.CheckString(2)
 	game.SetCurrentLocation(locationName)
 	return 0
 }
@@ -288,48 +292,48 @@ func luaGetCurrentCharacter(L *lua.LState, game *Game) int {
 }
 
 func luaSetCurrentCharacter(L *lua.LState, game *Game) int {
-	characterName := L.CheckString(1)
+	characterName := L.CheckString(2)
 	game.SetCurrentCharacter(characterName)
 	return 0
 }
 
 func luaGetFlag(L *lua.LState, game *Game) int {
-	flagName := L.CheckString(1)
+	flagName := L.CheckString(2)
 	value := game.GetFlag(flagName)
 	L.Push(lua.LBool(value))
 	return 1
 }
 
 func luaSetFlag(L *lua.LState, game *Game) int {
-	flagName := L.CheckString(1)
-	flagValue := L.CheckBool(2)
+	flagName := L.CheckString(2)
+	flagValue := L.CheckBool(3)
 	game.SetFlag(flagName, flagValue)
 	return 0
 }
 
 func luaGetCounter(L *lua.LState, game *Game) int {
-	counterName := L.CheckString(1)
+	counterName := L.CheckString(2)
 	value := game.GetCounter(counterName)
 	L.Push(lua.LNumber(value))
 	return 1
 }
 
 func luaSetCounter(L *lua.LState, game *Game) int {
-	counterName := L.CheckString(1)
-	value := L.CheckInt(2)
+	counterName := L.CheckString(2)
+	value := L.CheckInt(3)
 	game.SetCounter(counterName, value)
 	return 0
 }
 
 func luaIncreaseCounter(L *lua.LState, game *Game) int {
-	counterName := L.CheckString(1)
-	value := L.CheckInt(2)
+	counterName := L.CheckString(2)
+	value := L.CheckInt(3)
 	game.IncreaseCounter(counterName, value)
 	return 0
 }
 
 func luaGetCharacter(L *lua.LState, game *Game) int {
-	id := L.CheckString(1)
+	id := L.CheckString(2)
 	char, exists := game.data.Character[id] // Assuming Character is a map in GameData
 	if !exists {
 		L.Push(lua.LNil)
@@ -340,7 +344,7 @@ func luaGetCharacter(L *lua.LState, game *Game) int {
 }
 
 func luaGetItem(L *lua.LState, game *Game) int {
-	id := L.CheckString(1)
+	id := L.CheckString(2)
 	item, exists := game.data.Items[id] // Assuming Items is a map in GameData
 	if !exists {
 		L.Push(lua.LNil)
@@ -360,7 +364,7 @@ func luaGetCurrentCharacterPosition(L *lua.LState, game *Game) int {
 }
 
 func luaSetCurrentCharacterPosition(L *lua.LState, game *Game) int {
-	table := L.CheckTable(1)
+	table := L.CheckTable(2)
 	xLv := L.GetField(table, "x")
 	yLv := L.GetField(table, "y")
 	x, okX := xLv.(lua.LNumber)
@@ -380,26 +384,26 @@ func luaGetCurrentCharacterDirection(L *lua.LState, game *Game) int {
 }
 
 func luaSetCurrentCharacterDirection(L *lua.LState, game *Game) int {
-	dirStr := L.CheckString(1)
+	dirStr := L.CheckString(2)
 	game.SetCurrentCharacterDirection(model.CharacterDirection(dirStr))
 	return 0
 }
 
 func luaSetCurrentCharacterAnimationFrame(L *lua.LState, game *Game) int {
-	frame := L.CheckInt(1)
+	frame := L.CheckInt(2)
 	game.SetCurrentCharacterAnimationFrame(frame)
 	return 0
 }
 
 func luaSetCurrentCharacterAnimation(L *lua.LState, game *Game) int {
-	animName := L.CheckString(1)
+	animName := L.CheckString(2)
 	game.SetCurrentCharacterAnimation(animName)
 	return 0
 }
 
 func luaSetCurrentCharacterAnimationAtFrame(L *lua.LState, game *Game) int {
-	animName := L.CheckString(1)
-	frame := L.CheckInt(2)
+	animName := L.CheckString(2)
+	frame := L.CheckInt(3)
 	game.SetCurrentCharacterAnimationAtFrame(animName, frame)
 	return 0
 }
@@ -417,7 +421,7 @@ func luaGetCurrentCharacterAnimation(L *lua.LState, game *Game) int {
 }
 
 func luaExecuteAction(L *lua.LState, game *Game) int {
-	actionString := L.CheckString(1)
+	actionString := L.CheckString(2)
 	game.ExecuteAction(actionString) // Assuming ExecuteAction handles parsing this string
 	return 0
 }

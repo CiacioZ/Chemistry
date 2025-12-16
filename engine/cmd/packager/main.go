@@ -37,8 +37,7 @@ type Animation struct {
 type LocationDetails struct {
 	Description      string         `json:"description,omitempty"`
 	BackgroundImage  string         `json:"backgroundImage,omitempty"`
-	WalkableArea     [][]Point      `json:"walkableArea,omitempty"` // Array di poligoni
-	Polygons         []Polygon      `json:"polygons,omitempty"`
+	WalkableArea     []Polygon      `json:"walkableArea,omitempty"`
 	PlacedItems      []PlacedEntity `json:"placedItems,omitempty"`
 	PlacedCharacters []PlacedEntity `json:"placedCharacters,omitempty"`
 	BackgroundColor  string         `json:"backgroundColor,omitempty"`
@@ -75,6 +74,10 @@ type ActionDetails struct {
 	ActionType     string `json:"actionType,omitempty"`
 	TargetEntityId string `json:"targetEntityId,omitempty"`
 	// Altri campi specifici per le azioni
+}
+
+type CursorDetails struct {
+	Animations []Animation `json:"animations,omitempty"`
 }
 
 // --- Nodi del Diagramma ---
@@ -159,6 +162,14 @@ type Action struct {
 	Details  *ActionDetails `json:"details,omitempty"`
 }
 
+type Cursor struct {
+	ID       string         `json:"id"`
+	Type     string         `json:"type"`
+	Name     string         `json:"name"`
+	Internal bool           `json:"internal,omitempty"`
+	Details  *CursorDetails `json:"details,omitempty"`
+}
+
 // TypedNode (per il parsing in due fasi dei nodi del diagramma)
 type TypedNode struct {
 	ID          string          `json:"id"`
@@ -187,6 +198,7 @@ type PackagedGameData struct {
 	Items        []Item
 	Fonts        []Font
 	Scripts      []Script
+	Cursors      []Cursor
 }
 
 func main() {
@@ -238,6 +250,7 @@ func main() {
 	var items []Item
 	var fonts []Font
 	var scripts []Script
+	var cursors []Cursor
 
 	for _, genericEntity := range projectData.Entities {
 		switch genericEntity.Type {
@@ -286,13 +299,22 @@ func main() {
 				}
 			}
 			scripts = append(scripts, Script{ID: genericEntity.ID, Type: genericEntity.Type, Name: genericEntity.Name, Internal: genericEntity.Internal, Details: &details})
+		case "Cursor":
+			var details CursorDetails
+			if len(genericEntity.DetailsRaw) > 0 && string(genericEntity.DetailsRaw) != "null" {
+				if err := json.Unmarshal(genericEntity.DetailsRaw, &details); err != nil {
+					log.Printf("Error unmarshalling CursorDetails for entity %s: %v\n", genericEntity.ID, err)
+					continue
+				}
+			}
+			cursors = append(cursors, Cursor{ID: genericEntity.ID, Type: genericEntity.Type, Name: genericEntity.Name, Internal: genericEntity.Internal, Details: &details})
 		default:
 			log.Printf("Unknown entity type '%s' for entity ID %s, Name %s\n", genericEntity.Type, genericEntity.ID, genericEntity.Name)
 		}
 	}
 
-	log.Printf("Parsed Locations: %d, Characters: %d, Items: %d, Fonts: %d, Scripts: %d\n",
-		len(locations), len(characters), len(items), len(fonts), len(scripts))
+	log.Printf("Parsed Locations: %d, Characters: %d, Items: %d, Fonts: %d, Scripts: %d, Cursors: %d\n",
+		len(locations), len(characters), len(items), len(fonts), len(scripts), len(cursors))
 
 	// Esempi di accesso ai dati parsati:
 	/*
@@ -322,6 +344,7 @@ func main() {
 		Items:        items,
 		Fonts:        fonts,
 		Scripts:      scripts,
+		Cursors:      cursors,
 	}
 
 	// Definire il percorso del file di output binario

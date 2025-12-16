@@ -47,7 +47,11 @@ func (g *Game) LoadGameData(filePath string) error {
 		return fmt.Errorf("error decoding game data from %s: %w", filePath, err)
 	}
 
-	//TODO: Maps PackagedGameData to gameData
+	// Map PackagedGameData to gameData
+	err = g.MapPackagedData(gameData)
+	if err != nil {
+		return fmt.Errorf("error mapping game data: %w", err)
+	}
 
 	log.Printf("Successfully loaded game data for project: %s\n", gameData.ProjectName)
 	return nil

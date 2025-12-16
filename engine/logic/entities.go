@@ -361,7 +361,7 @@ func (g *Game) AddCursor(name string, cursor []byte) {
 }
 
 func (g *Game) AddCharacter(character model.Character) {
-	g.data.Character[character.ID] = character
+	g.data.Character[character.Name] = character
 }
 
 func (g *Game) AddItem(item model.Item) {
@@ -369,7 +369,7 @@ func (g *Game) AddItem(item model.Item) {
 }
 
 func (g *Game) AddLocation(location model.Location) {
-	g.data.Locations[location.ID] = location
+	g.data.Locations[location.Name] = location
 }
 
 func (g *Game) AddAction(action model.Action) {

@@ -2,6 +2,8 @@ package main
 
 import (
 	"chemistry/engine/logic"
+	_ "image/jpeg"
+	_ "image/png"
 	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -18,7 +20,7 @@ func init() {
 	//data.InitGenericData(&game)
 	//data.InitCustomData(&game)
 
-	game.ExecuteScript("intro")
+	game.ExecuteScript("Intro")
 }
 
 func main() {

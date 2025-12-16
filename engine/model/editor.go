@@ -30,8 +30,7 @@ type EditorAnimation struct {
 type EditorLocationDetails struct {
 	Description      string               `json:"description,omitempty"`
 	BackgroundImage  string               `json:"backgroundImage,omitempty"`
-	WalkableArea     [][]EditorPoint      `json:"walkableArea,omitempty"` // Array di poligoni
-	Polygons         []EditorPolygon      `json:"polygons,omitempty"`
+	WalkableArea     []EditorPolygon      `json:"walkableArea,omitempty"`
 	PlacedItems      []EditorPlacedEntity `json:"placedItems,omitempty"`
 	PlacedCharacters []EditorPlacedEntity `json:"placedCharacters,omitempty"`
 	BackgroundColor  string               `json:"backgroundColor,omitempty"`
@@ -61,6 +60,10 @@ type EditorFontDetails struct {
 
 type EditorScriptDetails struct {
 	ScriptContent string `json:"scriptContent,omitempty"`
+}
+
+type EditorCursorDetails struct {
+	Animations []EditorAnimation
 }
 
 // ActionDetails - definiscila se usata come entità separata
@@ -152,6 +155,14 @@ type EditorAction struct {
 	Details  *EditorActionDetails `json:"details,omitempty"`
 }
 
+type EditorCursor struct {
+	ID       string               `json:"id"`
+	Type     string               `json:"type"`
+	Name     string               `json:"name"`
+	Internal bool                 `json:"internal,omitempty"`
+	Details  *EditorCursorDetails `json:"details,omitempty"`
+}
+
 // TypedNode (per il parsing in due fasi dei nodi del diagramma)
 type EditorTypedNode struct {
 	ID          string                `json:"id"`
@@ -180,4 +191,6 @@ type PackagedGameData struct {
 	Items        []EditorItem
 	Fonts        []EditorFont
 	Scripts      []EditorScript
+	Actions      []EditorAction
+	Cursors      []EditorCursor
 }
