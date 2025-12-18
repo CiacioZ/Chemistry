@@ -52,7 +52,6 @@ export const LocationEditor: React.FC<LocationEditorProps> = ({ imageUploadServi
         description: '',
         backgroundImage: '',
         walkableArea: [],
-        polygons: [],
         placedItems: [],
         placedCharacters: [],
         ...(loc?.details || {}),
@@ -104,7 +103,6 @@ export const LocationEditor: React.FC<LocationEditorProps> = ({ imageUploadServi
                     description: '',
                     backgroundImage: '',
                     walkableArea: [],
-                    polygons: [],
                     placedItems: [],
                     placedCharacters: [],
                     ...(locEntity.details || {}), // Spread existing details over defaults
@@ -336,7 +334,7 @@ export const LocationEditor: React.FC<LocationEditorProps> = ({ imageUploadServi
               <PolygonEditor
                 locationId={selectedLocationId} // Pass GUID
                 initialImageUrlFromEntity={currentSelectedLocationDetails.backgroundImage || null} // Use memoized details
-                initialPolygonsFromEntity={currentSelectedLocationDetails.polygons || []} // Changed from walkableArea to polygons
+                initialPolygonsFromEntity={currentSelectedLocationDetails.walkableArea || []} // Load from walkableArea
                 entities={entities}
                 setEntities={setEntities}
                 imageUploadService={imageUploadService}

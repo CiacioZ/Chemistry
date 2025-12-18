@@ -15,7 +15,7 @@ interface VertexInfo {
 interface PolygonEditorProps {
   locationId: string; // ID of the location entity being edited
   initialImageUrlFromEntity?: string | null;
-  initialPolygonsFromEntity?: Polygon[];
+  initialPolygonsFromEntity?: Polygon[]; // Loaded from walkableArea in entity details
   entities: Entity[]; // Full list of entities from context
   setEntities: (entities: Entity[]) => void; // Updater function from context
   imageUploadService?: (file: File) => Promise<string>;
@@ -40,7 +40,7 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
   imageUploadService,
 }) => {
   const [imageUrl, setImageUrl] = useState<string | null>(initialImageUrlFromEntity || null);
-  const [polygons, setPolygons] = useState<Polygon[]>(initialPolygonsFromEntity || []);
+  const [polygons, setPolygons] = useState<Polygon[]>(initialPolygonsFromEntity || []); // Internal state, saved as walkableArea
   const [currentPolygon, setCurrentPolygon] = useState<Point[]>([]);
   const [isDrawing, setIsDrawing] = useState<boolean>(false);
   const [imageSize, setImageSize] = useState<{ width: number; height: number } | null>(null);
@@ -89,8 +89,7 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
         const baseDetails: LocationDetails = {
             description: '',
             backgroundImage: '',
-            walkableArea: [], // Assuming Point[][] for walkableArea
-            polygons: [],     // Polygon[] for polygons
+            walkableArea: [], // Polygon[] - this is what gets saved to JSON
             placedItems: [],
             placedCharacters: [],
             backgroundColor: '',
@@ -102,9 +101,8 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
           details: {
             ...baseDetails, // Spread the comprehensive base details first
             backgroundImage: imageUrl, // Update specific fields managed by PolygonEditor
-            polygons: polygons,      // Update polygons specifically
+            walkableArea: polygons,      // FIXED: Save as walkableArea for demo.json compatibility
             // description is preserved from baseDetails or existing locEntity.details
-            // walkableArea is preserved (if it was different from polygons)
           },
         } as LocationEntity; // Ensure the returned object is cast to LocationEntity
       }

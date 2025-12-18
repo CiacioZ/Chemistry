@@ -126,8 +126,7 @@ export interface ItemDetails {
 export interface LocationDetails {
   description: string;
   backgroundImage?: string;
-  walkableArea?: Point[][]; // Array di poligoni (Point[])
-  polygons?: Polygon[]; // Updated to use the Polygon interface
+  walkableArea?: Polygon[]; // Array di poligoni - saved to JSON as walkableArea
   placedItems?: PlacedEntity[];
   placedCharacters?: PlacedEntity[];
   backgroundColor?: string;
@@ -251,8 +250,7 @@ export const PREDEFINED_ENTITIES: AnyEntity[] = [
         internal: true,
         details: {
             description: 'A generic location for the player.',
-            backgroundImage: '', // Changed from null to empty string
-            // walkableAreas: [], // Changed to walkableArea
+            backgroundImage: '',
             walkableArea: [],
         }
     },
