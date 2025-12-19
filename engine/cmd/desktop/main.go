@@ -2,9 +2,11 @@ package main
 
 import (
 	"chemistry/engine/logic"
+	"fmt"
 	_ "image/jpeg"
 	_ "image/png"
 	"log"
+	"os"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -15,7 +17,11 @@ func init() {
 
 	game = logic.NewGame()
 
-	game.LoadGameData("demo_packaged.data")
+	err := game.LoadGameData("demo_packaged.data")
+	if err != nil {
+		fmt.Println(fmt.Sprintf("Error LoadGameData: %s", err.Error()))
+		os.Exit(1)
+	}
 
 	//data.InitGenericData(&game)
 	//data.InitCustomData(&game)
