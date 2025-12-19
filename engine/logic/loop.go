@@ -560,6 +560,19 @@ func (g *Game) drawBackground(screen *ebiten.Image, location model.Location) {
 
 func (g *Game) drawCharacter(screen *ebiten.Image, character model.Character) {
 	animation, frame := g.GetCurrentCharacterAnimation()
+
+	// Verifica che l'animazione esista
+	if _, exists := character.Animations[animation]; !exists {
+		log.Printf("Warning: Animation '%s' not found for character '%s'", animation, character.Name)
+		return
+	}
+
+	// Verifica che il frame esista
+	if frame >= len(character.Animations[animation]) || len(character.Animations[animation]) == 0 {
+		log.Printf("Warning: Frame %d out of range for animation '%s' (length: %d)", frame, animation, len(character.Animations[animation]))
+		return
+	}
+
 	characterFrameImage := character.Animations[animation][frame]
 
 	frameImage, _, err := image.Decode(bytes.NewReader(characterFrameImage))

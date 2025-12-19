@@ -50,14 +50,14 @@ const (
 type AnimationTypes string
 
 const (
-	WALK_LEFT_TO_RIGHT AnimationTypes = "WALK-LEFT-TO-RIGHT"
-	WALK_RIGHT_TO_LEFT AnimationTypes = "WALK-RIGHT-TO-LEFT"
-	WALK_UP_TO_DOWN    AnimationTypes = "WALK-UP-TO-DOWN"
-	WALK_DOWN_TO_UP    AnimationTypes = "WALK-DOWN-TO-UP"
-	TALK_LEFT_TO_RIGHT AnimationTypes = "TALK-LEFT-TO-RIGHT"
-	TALK_RIGHT_TO_LEFT AnimationTypes = "TALK-RIGHT-TO-LEFT"
-	TALK_UP_TO_DOWN    AnimationTypes = "TALK-UP-TO-DOWN"
-	TALK_DOWN_TO_UP    AnimationTypes = "TALK-DOWN-TO-UP"
+	WALK_LEFT_TO_RIGHT AnimationTypes = "WALK_LEFT_TO_RIGHT"
+	WALK_RIGHT_TO_LEFT AnimationTypes = "WALK_RIGHT_TO_LEFT"
+	WALK_UP_TO_DOWN    AnimationTypes = "WALK_UP_TO_DOWN"
+	WALK_DOWN_TO_UP    AnimationTypes = "WALK_DOWN_TO_UP"
+	TALK_LEFT_TO_RIGHT AnimationTypes = "TALK_LEFT_TO_RIGHT"
+	TALK_RIGHT_TO_LEFT AnimationTypes = "TALK_RIGHT_TO_LEFT"
+	TALK_UP_TO_DOWN    AnimationTypes = "TALK_UP_TO_DOWN"
+	TALK_DOWN_TO_UP    AnimationTypes = "TALK_DOWN_TO_UP"
 	PICK_UP_FACE_LEFT  AnimationTypes = "PICK_UP_FACE_LEFT"
 	PICK_UP_FACE_RIGHT AnimationTypes = "PICK_UP_FACE_RIGHT"
 	PICK_UP_FACE_DOWN  AnimationTypes = "PICK_UP_FACE_DOWN"
