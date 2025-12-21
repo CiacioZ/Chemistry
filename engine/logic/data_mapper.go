@@ -194,7 +194,7 @@ func (g *Game) MapPackagedData(pkgData model.PackagedGameData) error {
 				log.Printf("Error decoding font %s: %v", f.Name, err)
 				continue
 			}
-			g.AddFont(f.ID, fontBytes) // Assuming ID is the name we use for referencing
+			g.AddFont(f.Name, fontBytes) // Assuming ID is the name we use for referencing
 		}
 	}
 

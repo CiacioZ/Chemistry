@@ -11,12 +11,12 @@ var DoNothing = func() {}
 type Verb string
 
 const (
-	LOOK_AT Verb = "look-at"
-	PICK_UP Verb = "pick-up"
-	USE     Verb = "use"
-	TALK_TO Verb = "talk-to"
-	GIVE_TO Verb = "give-to"
-	MOVE_TO Verb = "move-to"
+	LOOK_AT Verb = "LOOK_AT"
+	PICK_UP Verb = "PICK_UP"
+	USE     Verb = "USE"
+	TALK_TO Verb = "TALK_TO"
+	GIVE_TO Verb = "GIVE_TO"
+	MOVE_TO Verb = "MOVE_TO"
 )
 
 type Action struct {
@@ -32,11 +32,11 @@ type Action struct {
 }
 
 const (
-	SOMEWHERE string = "everywhere"
-	NOWHERE   string = "nowhere"
-	SOMETHING string = "everything"
-	SOMEONE   string = "everyone"
-	NOTHING   string = "nothing"
+	SOMEWHERE string = "SOMEWHERE"
+	NOWHERE   string = "NOWHERE"
+	SOMETHING string = "SOMETHING"
+	SOMEONE   string = "SOMEONE"
+	NOTHING   string = "NOTHING"
 )
 
 type EntityType string

@@ -41,8 +41,8 @@
         ],
         "out": []
       },
-      "from": "bde518ee-f513-4393-8b3d-b4a9049b20ec",
-      "verb": "Interact with",
+      "from": "SOMEONE",
+      "verb": "USE",
       "to": "a2e62573-fb27-42e7-842d-cda480217ebf",
       "with": "6a8c081b-a474-4bdb-a5ba-6fecfaf47362",
       "where": "5f85f8fd-b494-4f85-9891-b81a630bdbef",
@@ -87,8 +87,8 @@
           "state-1748449584650"
         ]
       },
-      "from": "bde518ee-f513-4393-8b3d-b4a9049b20ec",
-      "verb": "Interact with",
+      "from": "SOMEONE",
+      "verb": "USE",
       "to": "3fccfae4-27e0-4bd9-b158-ad968251adba",
       "with": "a2e62573-fb27-42e7-842d-cda480217ebf",
       "where": "5f85f8fd-b494-4f85-9891-b81a630bdbef",
@@ -108,11 +108,11 @@
         ],
         "out": []
       },
-      "from": "bde518ee-f513-4393-8b3d-b4a9049b20ec",
-      "verb": "Look at",
+      "from": "SOMEONE",
+      "verb": "LOOK_AT",
       "to": "b03c7425-93b8-4782-8eee-cfb03ed132d9",
       "with": "",
-      "where": "376d6b3f-fa36-4a62-8339-ad19d3645c45",
+      "where": "SOMEWHERE",
       "script": "game:SaySomething(\"La nota dice: 'Usa la chiave sulla porta'\"); \ngame:SaySomething(\"mmh ci potevo anche arrivare da solo...\")"
     },
     {
@@ -129,61 +129,15 @@
         ],
         "out": []
       },
-      "from": "bde518ee-f513-4393-8b3d-b4a9049b20ec",
-      "verb": "Look at",
+      "from": "SOMEONE",
+      "verb": "LOOK_AT",
       "to": "3fccfae4-27e0-4bd9-b158-ad968251adba",
       "with": "",
-      "where": "376d6b3f-fa36-4a62-8339-ad19d3645c45",
+      "where": "SOMEWHERE",
       "script": "game:SaySomething(\"Sembra la chiave di una porta..\")"
     }
   ],
   "entities": [
-    {
-      "id": "bde518ee-f513-4393-8b3d-b4a9049b20ec",
-      "type": "Character",
-      "name": "SOMEONE",
-      "internal": true,
-      "details": {
-        "description": "A generic character",
-        "imageData": ""
-      }
-    },
-    {
-      "id": "6a8c081b-a474-4bdb-a5ba-6fecfaf47362",
-      "type": "Item",
-      "name": "NOTHING",
-      "internal": true,
-      "details": {
-        "description": "Represents no item.",
-        "imageData": "",
-        "canBePickedUp": false,
-        "useWith": false
-      }
-    },
-    {
-      "id": "15995493-d738-45bf-bdf3-3abe31fc2535",
-      "type": "Item",
-      "name": "SOMETHING",
-      "internal": true,
-      "details": {
-        "description": "Represents any item.",
-        "imageData": "",
-        "canBePickedUp": true,
-        "inventoryImageData": "",
-        "useWith": false
-      }
-    },
-    {
-      "id": "376d6b3f-fa36-4a62-8339-ad19d3645c45",
-      "type": "Location",
-      "name": "EVERYWHERE",
-      "internal": true,
-      "details": {
-        "description": "A generic location for the player.",
-        "backgroundImage": "",
-        "walkableArea": []
-      }
-    },
     {
       "id": "3fccfae4-27e0-4bd9-b158-ad968251adba",
       "type": "Item",

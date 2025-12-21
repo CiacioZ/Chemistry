@@ -449,8 +449,14 @@ func (g *Game) ExecuteAction(inputTrigger string) {
 }
 
 func (g *Game) getActionToExecute(subject string, verb model.Verb, mainObject string, secondObject string, location string) model.Action {
+
 	inputTrigger := composeTrigger(subject, verb, mainObject, secondObject, location)
 
+	if action, exists := g.data.Triggers[inputTrigger]; exists {
+		return action
+	}
+
+	inputTrigger = composeTrigger(model.SOMEONE, verb, mainObject, secondObject, location)
 	if action, exists := g.data.Triggers[inputTrigger]; exists {
 		return action
 	}
