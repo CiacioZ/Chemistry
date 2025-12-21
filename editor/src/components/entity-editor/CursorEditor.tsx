@@ -61,7 +61,7 @@ export const CursorEditor: React.FC = () => {
     if (newName) {
       const isNameTaken = entities.some(e => e.type === 'Cursor' && e.name === newName && e.id !== cursorIdToUpdate);
       if (isNameTaken) {
-        alert(`Il nome del cursore "${newName}" è già in uso. Modifica del nome annullata.`);
+        alert(`Il nome del cursore &quot;${newName}&quot; è già in uso. Modifica del nome annullata.`);
         const originalCursor = entities.find(e => e.id === cursorIdToUpdate);
         setFormData(prev => ({ ...prev, name: originalCursor?.name || '' }));
         return;
@@ -462,7 +462,7 @@ export const CursorEditor: React.FC = () => {
                       ) : (
                         <div onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()} className="cursor-default">
                            <p className="text-gray-500 dark:text-gray-400 text-xs italic mt-2 py-1 px-2 rounded bg-gray-100 dark:bg-gray-700/50 text-center">
-                            Nessun frame. Clicca "+ Aggiungi Frame".
+                            Nessun frame. Clicca &quot;+ Aggiungi Frame&quot;.
                           </p>
                         </div>
                       )}

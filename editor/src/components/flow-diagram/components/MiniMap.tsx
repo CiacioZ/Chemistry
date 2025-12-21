@@ -1,7 +1,7 @@
 // src/components/flow-diagram/components/Minimap.tsx
 
 import React from 'react';
-import { Node } from '../types';
+import { Node } from '../types/index';
 
 interface MinimapProps {
   nodes: Node[];

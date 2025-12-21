@@ -1,11 +1,5 @@
 import React, { useState } from 'react';
-import { Position } from '../types';
-
-interface ArrowProps {
-  startPos: Position;    // Posizione di partenza della freccia
-  endPos: Position;      // Posizione di arrivo della freccia
-  onRemove: () => void;  // Funzione chiamata quando la freccia viene rimossa
-}
+import { Position } from '../types/index';
 
 export const Arrow: React.FC<{
   startPos: Position;

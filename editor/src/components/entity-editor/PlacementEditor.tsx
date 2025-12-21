@@ -84,7 +84,7 @@ export const PlacementEditor: React.FC<PlacementEditorProps> = ({
         imgSrc = itemEntity?.details?.inventoryImageData || itemEntity?.details?.imageData;
       } else if (selectedEntityTypeToPlace === 'Character') {
         const charEntity = allCharacters.find(c => c.id === selectedEntityIdToPlace);
-        imgSrc = (charEntity?.details as any)?.mapSprite || charEntity?.details?.imageData;
+        imgSrc = (charEntity?.details as { mapSprite?: string })?.mapSprite || charEntity?.details?.imageData;
       }
       setCursorImageUrl(imgSrc || null);
       setEditingSpotFor(null); // Esci dalla modalità di modifica dello spot se si seleziona una nuova entità da piazzare
@@ -348,8 +348,8 @@ export const PlacementEditor: React.FC<PlacementEditorProps> = ({
                   }}
                   onMouseDown={(e) => e.stopPropagation()} // Impedisce al mousedown sull'icona di iniziare il drag dello spot
                 >
-                  {(charEntity?.details as any)?.mapSprite && charEntity ? 
-                    <img src={(charEntity.details as any).mapSprite} alt={charEntity.name} className="max-w-full max-h-full object-contain pointer-events-none" /> : 
+                  {(charEntity?.details as { mapSprite?: string })?.mapSprite && charEntity ? 
+                    <img src={(charEntity.details as { mapSprite?: string }).mapSprite} alt={charEntity.name} className="max-w-full max-h-full object-contain pointer-events-none" /> : 
                     (charEntity?.name || char.entityId).substring(0,1)
                   } 
                 </div>

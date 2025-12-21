@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, Dispatch, SetStateAction, useRef } from 'react'; // Added useRef
 import { useDiagramContext } from '../flow-diagram/contexts/DiagramContext';
-import { Entity, LocationEntity, ItemEntity, CharacterEntity, LocationDetails, Polygon, PlacedEntity, Point } from '../flow-diagram/types/index'; // Importa ItemEntity, CharacterEntity, AND LocationDetails, Polygon, PlacedEntity, Point
+import { Entity, LocationEntity, ItemEntity, CharacterEntity, LocationDetails } from '../flow-diagram/types/index'; // Importa ItemEntity, CharacterEntity, AND LocationDetails
 import { PolygonEditor } from './PolygonEditor';
 import { PlacementEditor } from './PlacementEditor'; // Assicurati che questo import sia corretto
 import { v4 as uuidv4 } from 'uuid'; // Import uuid
@@ -188,7 +188,6 @@ export const LocationEditor: React.FC<LocationEditorProps> = ({ imageUploadServi
             description: '',
             backgroundImage: '',
             walkableArea: [],
-            polygons: [],
             placedItems: [],
             placedCharacters: []
         }

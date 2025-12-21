@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation'; // Importa useRouter
 import { Save, Upload, FilePlus } from 'lucide-react'; // Importa le icone necessarie
 import EditorTabs, { EditorTabType } from '@/components/entity-editor/EntityTabs';
 import FlowDiagram from '@/components/flow-diagram/FlowDiagram';
@@ -20,7 +19,6 @@ const editorTabs: EditorTabType[] = ['Graph', 'Locations', 'Items', 'Characters'
 
 export default function EditorPage() {
   const [currentTab, setCurrentTab] = useState<EditorTabType>('Graph');
-  const router = useRouter(); // Hook per la navigazione
   const {
     nodes,
     projectName, // Assicurati che sia già qui

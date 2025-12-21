@@ -1,9 +1,9 @@
 import { useState, RefObject } from 'react';
-import { Node, DragState } from '../types';
+import { Node, DragState } from '../types/index';
 
 interface UseDragAndDropProps {
   nodes: Node[];
-  workspaceRef: RefObject<HTMLDivElement>;
+  workspaceRef: RefObject<HTMLDivElement | null>;
   pushNodes: (nodes: Node[]) => void;
 }
 

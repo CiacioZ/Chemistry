@@ -207,7 +207,7 @@ export interface ActionDetails {
 
 export const PREDEFINED_ENTITIES: AnyEntity[] = [
     {
-        id: uuidv4(), // Generate GUID
+        id: 'SOMEONE', // Generate GUID
         type: 'Character',
         name: 'SOMEONE',
         internal: true,
@@ -219,7 +219,7 @@ export const PREDEFINED_ENTITIES: AnyEntity[] = [
         }
     },
     {
-        id: uuidv4(), // Generate GUID
+        id: 'NOTHING', // Generate GUID
         type: 'Item',
         name: 'NOTHING',
         internal: true,
@@ -231,7 +231,7 @@ export const PREDEFINED_ENTITIES: AnyEntity[] = [
         }
     },
     {
-        id: uuidv4(), // Generate GUID
+        id: 'SOMETHING', // Generate GUID
         type: 'Item',
         name: 'SOMETHING',
         internal: true,
@@ -244,9 +244,9 @@ export const PREDEFINED_ENTITIES: AnyEntity[] = [
         }
     },
     {
-        id: uuidv4(), // Generate GUID
+        id: 'SOMEWHERE', // Generate GUID
         type: 'Location',
-        name: 'EVERYWHERE',
+        name: 'SOMEWHERE',
         internal: true,
         details: {
             description: 'A generic location for the player.',
@@ -265,5 +265,5 @@ export const PREDEFINED_ENTITIES: AnyEntity[] = [
     }
 ];
 
-export const VERBS = ['Talk to', 'Go to', 'Interact with', 'Look at', 'Move to'] as const;
+export const VERBS = ['Talk_To', 'Go_To', 'Use', 'Look_At', 'Move_To'] as const;
 export type VerbType = typeof VERBS[number];

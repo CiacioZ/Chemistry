@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef, useCallback, ChangeEvent } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useDiagramContext } from '../flow-diagram/contexts/DiagramContext';
-import { Entity, CharacterEntity, Animation, AnimationFrame } from '../flow-diagram/types/index';
+import { Entity, CharacterEntity, Animation } from '../flow-diagram/types/index';
 import { v4 as uuidv4 } from 'uuid';
 
 // Interfaccia per il formData, aggiornata per includere le animazioni

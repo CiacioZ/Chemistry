@@ -1,9 +1,9 @@
 import { useState, useEffect, RefObject } from 'react';
-import { Node, NodePositions } from '../types';
+import { Node, NodePositions } from '../types/index';
 
 export const useNodePositions = (
   nodes: Node[],
-  containerRef: RefObject<HTMLDivElement>,
+  containerRef: RefObject<HTMLDivElement | null>,
   tempNodes: Node[], // Aggiungiamo tempNodes come parametro
   isDragging: boolean // Aggiungiamo lo stato del drag
 ) => {
@@ -21,7 +21,7 @@ export const useNodePositions = (
       
       currentNodes.forEach(node => {
         const element = document.getElementById(node.id);
-        if (element) {
+        if (element && containerRef.current) {
           const rect = element.getBoundingClientRect();
           
           newPositions[node.id] = {

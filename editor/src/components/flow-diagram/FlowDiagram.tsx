@@ -9,7 +9,7 @@ import { DiagramToolbar } from './components/DiagramToolbar';
 import { useDiagramContext } from './contexts/DiagramContext';
 import { useDragAndDrop } from './hooks/useDragAndDrop';
 import { useNodePositions } from './hooks/useNodePositions';
-import { ConnectionDragState, Entity } from './types/index';
+import { ConnectionDragState } from './types/index';
 import { diagramOperations } from './services/diagramOperations';
 
 const FlowDiagram: React.FC = () => {
@@ -162,15 +162,15 @@ const FlowDiagram: React.FC = () => {
           />
 
           {/* Linea di connessione temporanea */}
-          {connectingNode.isConnecting && connectingNode.sourcePosition && mousePosition.x !== 0 && mousePosition.y !== 0 && (
+          {connectingNode.isConnecting && connectingNode.sourcePosition && mousePosition.x !== 0 && mousePosition.y !== 0 && workspaceRef.current && (
             <svg className="absolute top-0 left-0 w-full h-full pointer-events-none">
               <path
-                d={`M ${connectingNode.sourcePosition.x - workspaceRef.current?.getBoundingClientRect().left} 
-                    ${connectingNode.sourcePosition.y - workspaceRef.current?.getBoundingClientRect().top} 
+                d={`M ${connectingNode.sourcePosition.x - workspaceRef.current.getBoundingClientRect().left} 
+                    ${connectingNode.sourcePosition.y - workspaceRef.current.getBoundingClientRect().top} 
                    Q ${(connectingNode.sourcePosition.x + mousePosition.x) / 2} 
-                    ${connectingNode.sourcePosition.y - workspaceRef.current?.getBoundingClientRect().top},
-                   ${mousePosition.x - workspaceRef.current?.getBoundingClientRect().left} 
-                    ${mousePosition.y - workspaceRef.current?.getBoundingClientRect().top}`}
+                    ${connectingNode.sourcePosition.y - workspaceRef.current.getBoundingClientRect().top},
+                   ${mousePosition.x - workspaceRef.current.getBoundingClientRect().left} 
+                    ${mousePosition.y - workspaceRef.current.getBoundingClientRect().top}`}
                 stroke="#666"
                 strokeWidth="2"
                 strokeDasharray="5,5"

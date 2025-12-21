@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef, useCallback, ChangeEvent } from 'react'; // Added useRef, useCallback
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'; // Added useRef, useCallback
 import { useDiagramContext } from '../flow-diagram/contexts/DiagramContext';
-import { Entity, ItemEntity, Animation, AnimationFrame } from '../flow-diagram/types/index'; // Aggiunto ItemEntity, Animation, AnimationFrame
+import { Entity, ItemEntity, Animation } from '../flow-diagram/types/index'; // Aggiunto ItemEntity, Animation
 import { v4 as uuidv4 } from 'uuid'; // Import uuid
 
 // TODO: Definire un'interfaccia basata sulla struct model.Item di Go
@@ -85,7 +85,7 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ imageUploadService }) =>
     if (newName) {
       const isNameTaken = entities.some(e => e.type === 'Item' && e.name === newName && e.id !== itemIdToUpdate);
       if (isNameTaken) {
-        alert(`Il nome dell\'item "${newName}" è già in uso. Modifica del nome annullata.`);
+        alert(`Il nome dell&apos;item &quot;${newName}&quot; è già in uso. Modifica del nome annullata.`);
         const originalItem = entities.find(e => e.id === itemIdToUpdate);
         setFormData(prev => ({ ...prev, name: originalItem?.name || '' }));
         return; 
@@ -163,7 +163,7 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ imageUploadService }) =>
   };
 
   const handleDeleteItem = useCallback((itemIdToDelete: string) => {
-    if (window.confirm(`Sei sicuro di voler cancellare l\'item? Questa azione non può essere annullata.`)) {
+    if (window.confirm(`Sei sicuro di voler cancellare l&apos;item? Questa azione non può essere annullata.`)) {
       const newEntities = entities.filter((entity: Entity) => entity.id !== itemIdToDelete);
       setEntities(newEntities);
 
@@ -764,7 +764,7 @@ export const ItemEditor: React.FC<ItemEditorProps> = ({ imageUploadService }) =>
                       ) : (
                         <div onClick={(e) => e.stopPropagation()} className="cursor-default">
                            <p className="text-gray-500 dark:text-gray-400 text-xs italic mt-2 py-1 px-2 rounded bg-gray-100 dark:bg-gray-700/50 text-center">
-                            Nessun frame. Clicca "+ Aggiungi Frame".
+                            Nessun frame. Clicca &quot;+ Aggiungi Frame&quot;.
                           </p>
                         </div>
                       )}

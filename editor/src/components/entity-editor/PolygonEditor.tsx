@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useCallback, Dispatch, SetStateAction } from 'react';
-import { Polygon, Point, Entity, LocationEntity, LocationDetails, PlacedEntity } from '../flow-diagram/types/index';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Polygon, Point, Entity, LocationEntity, LocationDetails } from '../flow-diagram/types/index';
 
 
 
@@ -160,7 +160,6 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
   // Accetta coordinate del canvas (pixel sullo schermo)
   const findNearbyVertex = useCallback((canvasPoint: { x: number; y: number }): VertexInfo | null => {
     if (!imageSize || !canvasRef.current || !imageRef.current) return null;
-    const canvas = canvasRef.current;
     const imageElement = imageRef.current;
 
     // Scala per convertire da coordinate naturali a coordinate canvas visualizzate
@@ -200,7 +199,6 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
   // --- NUOVA FUNZIONE: Trova un lato vicino a un punto del canvas ---
   const findNearbyEdge = useCallback((canvasPoint: { x: number; y: number }): EdgeInfo | null => {
     if (!imageSize || !canvasRef.current || !imageRef.current) return null;
-    const canvas = canvasRef.current;
     const imageElement = imageRef.current;
 
     const scaleX = imageElement.clientWidth / imageSize.width;
@@ -621,10 +619,6 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
     }
   };
 
-  const handleImageUploadClick = () => {
-    fileInputRef.current?.click();
-  };
-
   // Bottone Annulla disegno corrente
   const handleCancelDrawing = () => {
       if (confirm('Sei sicuro di voler annullare il disegno corrente?')) {
@@ -652,7 +646,7 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
        }
    };
 
-  const handleCanvasMouseUp = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleCanvasMouseUp = useCallback(() => {
     if (draggingVertexInfoRef.current) {
       // Potentially snap vertex to a grid or perform other actions on drag end
     }
@@ -661,31 +655,13 @@ export const PolygonEditor: React.FC<PolygonEditorProps> = ({
     // draw(); // Se draw è una funzione useCallback che puoi chiamare qui
   }, []); // Aggiungere dipendenze se necessario (es. setDraggingVertexInfo)
 
-  const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (e.button !== 0) return; // Gestisci solo click sinistro
-
-    const naturalCoords = getNaturalCoordinates(e);
-    if (!naturalCoords) return;
-
-    if (isDrawing) {
-      // Aggiungi punto al poligono corrente
-      setCurrentPolygon(prev => [...prev, naturalCoords]);
-    } else {
-      // Logica per selezionare poligoni o vertici, o iniziare a disegnare un nuovo poligono
-      // console.log("Canvas clicked at:", naturalCoords);
-    }
-    // draw(); // Potrebbe essere necessario ridisegnare
-  }, [isDrawing, getNaturalCoordinates, setCurrentPolygon]); // Aggiungere dipendenze
+  const handleCanvasClick = useCallback(() => {
+    // Placeholder per gestione click
+  }, []);
 
   const handleCanvasContextMenu = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    e.preventDefault(); // Impedisce il menu contestuale del browser
-    // console.log("Canvas context menu triggered");
-    // Qui potrebbe andare la logica per finire un poligono, eliminare un vertice, ecc.
-    if (isDrawing && currentPolygonRef.current.length >= 3) {
-      // Esempio: finisci il poligono con il tasto destro
-      // handleFinishDrawing(); // Assicurati che handleFinishDrawing sia definito e useCallback
-    }
-  }, [isDrawing]); // Aggiungere dipendenze se necessario
+    e.preventDefault();
+  }, []);
 
   return (
     <div className="flex flex-col h-full">

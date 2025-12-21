@@ -4,7 +4,7 @@ import { useDiagramContext } from '../contexts/DiagramContext';
 import { diagramOperations } from '../services/diagramOperations';
 
 interface DiagramToolbarProps {
-  scrollContainerRef: React.RefObject<HTMLDivElement>;
+  scrollContainerRef: React.RefObject<HTMLDivElement | null>;
 }
 
 export const DiagramToolbar: React.FC<DiagramToolbarProps> = ({ scrollContainerRef }) => {

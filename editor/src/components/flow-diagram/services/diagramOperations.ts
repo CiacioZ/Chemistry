@@ -73,9 +73,12 @@ export const diagramOperations = {
   },
 
   updateNode: (nodes: Node[], id: string, updates: Partial<Node>): Node[] => {
-    return nodes.map(node => 
-      node.id === id ? { ...node, ...updates } : node
-    );
+    return nodes.map(node => {
+      if (node.id === id) {
+        return { ...node, ...updates } as Node;
+      }
+      return node;
+    });
   },
 
   deleteNode: (nodes: Node[], idToDelete: string): Node[] => {
@@ -104,7 +107,7 @@ export const diagramOperations = {
         }
         // Questo fallback non dovrebbe essere raggiunto se Node è solo ActionNode | StateNode
         // Lancio un errore per indicare uno stato impossibile e per aiutare l'inferenza di tipo.
-        throw new Error(`Unknown node type encountered in deleteNode: ${(node as any).type}`);
+        throw new Error(`Unknown node type encountered in deleteNode: ${(node as { type: string }).type}`);
       });
   },
 

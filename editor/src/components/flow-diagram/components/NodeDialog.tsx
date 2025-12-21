@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Dispatch, SetStateAction } from 'react';
-import { Node, Entity, EntityType, VERBS, CharacterDetails, ItemDetails, LocationDetails, AnyEntity, PREDEFINED_ENTITIES, ActionNode, StateNode, NodeFlag } from '../types/index';
+import { Node, Entity, EntityType, VERBS, AnyEntity, PREDEFINED_ENTITIES, ActionNode, StateNode, NodeFlag } from '../types/index';
 import { v4 as uuidv4 } from 'uuid';
 import {
   Dialog,
@@ -10,12 +10,12 @@ import {
  
  const getToEntityTypes = (verb: string): EntityType[] => {
    switch(verb) {
-     case 'Talk to': return ['Character'];
+     case 'Talk_To': return ['Character'];
      case 'Get': return ['Item'];
-     case 'Go to': return ['Location'];
-     case 'Look at': return ['Item', 'Character'];
-     case 'Interact with': return ['Character', 'Item'];
-     case 'Move to': return ['Location'];
+     case 'Go_To': return ['Location'];
+     case 'Look_At': return ['Item', 'Character'];
+     case 'Use': return ['Character', 'Item'];
+     case 'Move_To': return ['Location'];
      default: return ['Character'];
    }
  };
@@ -200,7 +200,7 @@ import {
              type,
              name,
              internal: false,
-             details: { description: '', backgroundImage: '', walkableArea: [], polygons: [], placedItems: [], placedCharacters: [] },
+             details: { description: '', backgroundImage: '', walkableArea: [], placedItems: [], placedCharacters: [] },
            };
            break;
          default:
@@ -232,7 +232,7 @@ import {
          ...prev,
          verb: value,
          to: resetTo ? '' : (prev as Partial<ActionNode>).to, // Resetta 'to' se il tipo non è più valido
-         with: value !== 'Interact with' ? '' : (prev as Partial<ActionNode>).with, // Resetta 'with' se il verbo non è 'Interact with'
+         with: value !== 'Use' ? '' : (prev as Partial<ActionNode>).with, // Resetta 'with' se il verbo non è 'Interact with'
        }));
      } else {
        setTempValues(prev => ({
@@ -244,12 +244,12 @@ import {
  
    const handleAddFlag = () => {
      setTempValues(prev => {
-       const currentNode = prev as Partial<Node>; // Manteniamo Partial<Node> per coerenza
+       const currentNode = prev as Partial<Node>;
        if (currentNode.type !== 'state') return currentNode; // Non dovrebbe succedere, ma per sicurezza
  
        const currentFlags = (currentNode as Partial<StateNode>).flags || [];
        const newFlags = [...currentFlags, { name: '', value: false }];
-       return { ...currentNode, flags: newFlags } as Partial<StateNode>; // Cast esplicito
+       return { ...currentNode, flags: newFlags } as Partial<StateNode>;
      });
    };
 
@@ -261,9 +261,9 @@ import {
        const currentFlags = (currentNode as Partial<StateNode>).flags || [];
        const newFlags = [...currentFlags];
        if (newFlags[index]) {
-         (newFlags[index] as any)[field] = value; // Usare any qui è pragmatico per l'assegnazione dinamica dei campi
+         newFlags[index] = { ...newFlags[index], [field]: value };
        }
-       return { ...currentNode, flags: newFlags } as Partial<StateNode>; // Cast esplicito
+       return { ...currentNode, flags: newFlags } as Partial<StateNode>;
      });
    };
 
