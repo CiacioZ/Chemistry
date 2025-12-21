@@ -1,0 +1,38 @@
+{
+  "fonts": [
+    {
+      "name": "default",
+      "path": "assets/fonts/default.ttf",
+      "size": 24
+    },
+    {
+      "name": "title",
+      "path": "assets/fonts/title.ttf", 
+      "size": 36
+    },
+    {
+      "name": "small",
+      "path": "assets/fonts/small.ttf",
+      "size": 16
+    },
+    {
+      "name": "large",
+      "path": "assets/fonts/large.ttf",
+      "size": 48
+    }
+  ],
+  "images": [
+    {
+      "name": "logo",
+      "path": "assets/images/logo.png"
+    },
+    {
+      "name": "background",
+      "path": "assets/images/background.png"
+    },
+    {
+      "name": "icon",
+      "path": "assets/images/icon.png"
+    }
+  ]
+}
