@@ -302,14 +302,14 @@ export const PlacementEditor: React.FC<PlacementEditorProps> = ({
                 {/* Icona dell'Item */}
                 <div
                   title={`${itemEntity?.name || 'Unknown Item'} (Item) - Click to remove. Drag green circle to set interaction spot.`}
-                  className={`absolute w-8 h-8 flex items-center justify-center text-xs cursor-pointer rounded ${isEditingThisSpot ? 'border-2 border-blue-500' : ''}`}
-                  style={{ left: `${obj.position.x}px`, top: `${obj.position.y}px`, transform: 'translate(-50%, -50%)' }}
+                  className={`absolute cursor-pointer ${isEditingThisSpot ? 'border-2 border-blue-500 rounded' : ''}`}
+                  style={{ left: `${obj.position.x}px`, top: `${obj.position.y}px` }}
                   onClick={(e) => { 
                     e.stopPropagation(); 
-                    if (isEditingThisSpot) { setEditingSpotFor(null); return; } // Deseleziona se si clicca sull'icona mentre si modifica lo spot
+                    if (isEditingThisSpot) { setEditingSpotFor(null); return; }
                     handleRemovePlacedEntity(obj.entityId, 'Item'); 
                   }}
-                  onMouseDown={(e) => e.stopPropagation()} // Impedisce al mousedown sull'icona di iniziare il drag dello spot
+                  onMouseDown={(e) => e.stopPropagation()}
                 >
                   {imgSrc && <img src={imgSrc} alt={itemEntity?.name || obj.entityId} className="max-w-full max-h-full object-contain pointer-events-none" />}
                   {!imgSrc && (itemEntity?.name || obj.entityId).substring(0,1)}
@@ -339,14 +339,14 @@ export const PlacementEditor: React.FC<PlacementEditorProps> = ({
                 {/* Icona del Personaggio */}
                 <div
                   title={`${charEntity?.name || 'Unknown Character'} (Character) - Click to remove. Drag green circle to set interaction spot.`}
-                  className={`absolute w-8 h-8 flex items-center justify-center text-xs cursor-pointer rounded ${isEditingThisSpot ? 'border-2 border-blue-500' : ''}`}
-                  style={{ left: `${char.position.x}px`, top: `${char.position.y}px`, transform: 'translate(-50%, -50%)' }}
+                  className={`absolute cursor-pointer ${isEditingThisSpot ? 'border-2 border-blue-500 rounded' : ''}`}
+                  style={{ left: `${char.position.x}px`, top: `${char.position.y}px` }}
                   onClick={(e) => { 
                     e.stopPropagation(); 
-                    if (isEditingThisSpot) { setEditingSpotFor(null); return; } // Deseleziona se si clicca sull'icona mentre si modifica lo spot
+                    if (isEditingThisSpot) { setEditingSpotFor(null); return; }
                     handleRemovePlacedEntity(char.entityId, 'Character'); 
                   }}
-                  onMouseDown={(e) => e.stopPropagation()} // Impedisce al mousedown sull'icona di iniziare il drag dello spot
+                  onMouseDown={(e) => e.stopPropagation()}
                 >
                   {(charEntity?.details as { mapSprite?: string })?.mapSprite && charEntity ? 
                     <img src={(charEntity.details as { mapSprite?: string }).mapSprite} alt={charEntity.name} className="max-w-full max-h-full object-contain pointer-events-none" /> : 
@@ -371,7 +371,7 @@ export const PlacementEditor: React.FC<PlacementEditorProps> = ({
         </div>
       </div>
       <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-        Click on an item/character icon on the map to remove it. Drag the green circle to set its interaction spot. Coordinates are now absolute pixels.
+        Click on an item/character icon on the map to remove it. Drag the green circle to set its interaction spot. Coordinates are top-left corner (engine compatible).
       </div>
     </div>
   );
