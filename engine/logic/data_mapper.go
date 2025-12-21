@@ -145,7 +145,9 @@ func (g *Game) MapPackagedData(pkgData model.PackagedGameData) error {
 		// It has `Verb`, `From`, `To`, `With`, `Where`, `Script`.
 		// This looks like it directly maps to an Action.
 
-		if node.Type == "action" || (node.Verb != "" && node.From != "") { // Assuming "action" type or presence of verb/from
+		switch node.Type {
+		case "action":
+			// Assuming "action" type or presence of verb/from
 			// Construct Action
 			// Check if it has a script or just standard behavior
 			// If Script is present, use it.
@@ -183,6 +185,12 @@ func (g *Game) MapPackagedData(pkgData model.PackagedGameData) error {
 				model.DoNothing, // ExecAfter
 			)
 			g.AddAction(action)
+		case "state":
+			if node.Label == "Initial state" {
+				for _, flag := range node.Flags {
+					g.SetFlag(flag.Name, flag.Value)
+				}
+			}
 		}
 	}
 

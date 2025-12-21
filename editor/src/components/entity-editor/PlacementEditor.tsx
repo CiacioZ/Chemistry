@@ -29,6 +29,7 @@ export const PlacementEditor: React.FC<PlacementEditorProps> = ({
   const [selectedEntityIdToPlace, setSelectedEntityIdToPlace] = useState<string | null>(null);
   const [cursorImageUrl, setCursorImageUrl] = useState<string | null>(null);
   const [naturalImageSize, setNaturalImageSize] = useState<{ width: number; height: number } | null>(null);
+  const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null);
   
   // Nuovi stati per la modifica del punto di interazione
   const [editingSpotFor, setEditingSpotFor] = useState<{ entityId: string; type: 'Item' | 'Character' } | null>(null);
@@ -167,11 +168,21 @@ export const PlacementEditor: React.FC<PlacementEditorProps> = ({
   };
 
   const handleMouseMoveForSpotDrag = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (!isDraggingSpot || !editingSpotFor || !contentWrapperRef.current || !naturalImageSize) return;
+    if (!contentWrapperRef.current || !naturalImageSize) return;
 
     const rect = contentWrapperRef.current.getBoundingClientRect();
-    const clickX = event.clientX - rect.left;
-    const clickY = event.clientY - rect.top;
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
+
+    // Aggiorna posizione cursore per preview
+    if (selectedEntityIdToPlace && !isDraggingSpot && !editingSpotFor) {
+      setCursorPosition({ x: mouseX, y: mouseY });
+    }
+
+    if (!isDraggingSpot || !editingSpotFor) return;
+
+    const clickX = mouseX;
+    const clickY = mouseY;
 
     // Converti in coordinate intere (pixel) e applica clamping
     const newX = Math.round(Math.max(0, Math.min(naturalImageSize.width, clickX)));
@@ -254,7 +265,7 @@ export const PlacementEditor: React.FC<PlacementEditorProps> = ({
       <div 
         className="flex-grow relative border rounded-md overflow-auto bg-gray-200 dark:bg-gray-800"
         ref={scrollContainerRef}
-        style={cursorImageUrl && naturalImageSize && !editingSpotFor ? { cursor: `url(${cursorImageUrl}) 16 16, auto` } : (isDraggingSpot ? {cursor: 'grabbing'} : { cursor: 'default' })}
+        style={isDraggingSpot ? {cursor: 'grabbing'} : { cursor: 'crosshair' }}
       >
         <div 
           ref={contentWrapperRef} 
@@ -368,6 +379,21 @@ export const PlacementEditor: React.FC<PlacementEditorProps> = ({
               </React.Fragment>
             );
           })}
+
+          {/* Preview immagine che segue il cursore */}
+          {cursorImageUrl && cursorPosition && selectedEntityIdToPlace && !editingSpotFor && (
+            <div
+              className="absolute pointer-events-none"
+              style={{ 
+                left: `${cursorPosition.x}px`, 
+                top: `${cursorPosition.y}px`,
+                opacity: 0.7,
+                zIndex: 1000
+              }}
+            >
+              <img src={cursorImageUrl} alt="Preview" className="max-w-full max-h-full object-contain" />
+            </div>
+          )}
         </div>
       </div>
       <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
