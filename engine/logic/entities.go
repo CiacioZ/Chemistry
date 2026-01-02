@@ -158,6 +158,10 @@ func (g *Game) SetCurrentVerb(verb model.Verb) {
 }
 
 func (g *Game) SetCurrentCursor(name string) {
+	// Load cursor on-demand if using packaged data
+	if g.packagedData != nil {
+		g.LoadCursor(name)
+	}
 
 	cursorImage, _, err := image.Decode(bytes.NewReader(g.data.Cursors[name]))
 	if err != nil {
@@ -165,7 +169,6 @@ func (g *Game) SetCurrentCursor(name string) {
 	}
 
 	g.state.currentCursor = ebiten.NewImageFromImage(cursorImage)
-
 }
 
 func (g *Game) GetCurrentLocation() model.Location {
@@ -176,6 +179,11 @@ func (g *Game) SetCurrentLocation(location string) {
 	locationData := g.GetLocation(location)
 	g.state.currentLocation = locationData
 	g.state.pathFinder = model.NewPathfinder(locationData.GetWalkableArea(0).Polygons)
+
+	// Load background on-demand
+	if g.packagedData != nil {
+		g.LoadLocationBackground(location)
+	}
 
 	backgroundImage, _, err := image.Decode(bytes.NewReader(locationData.GetLayers()[0].Image))
 	if err != nil {
@@ -193,6 +201,11 @@ func (g *Game) GetCurrentCharacter() model.Character {
 func (g *Game) SetCurrentCharacter(character string) {
 	characterData := g.GetCharacter(character)
 	g.state.currentCharacter = characterData
+
+	// Load character animations on-demand
+	if g.packagedData != nil {
+		g.LoadCharacterAnimations(character)
+	}
 }
 
 func (g *Game) GetFlag(flag string) bool {
@@ -235,6 +248,11 @@ func (g *Game) AddScript(name string, scriptText string) {
 }
 
 func (g *Game) ExecuteScript(name string) {
+	// Load script on-demand if not loaded
+	if g.data.Scripts[name] == "" && g.packagedData != nil {
+		g.LoadScript(name)
+	}
+
 	scriptText, exists := g.data.Scripts[name]
 	if !exists {
 		log.Printf("Error: Lua script named '%s' not found.", name)

@@ -17,7 +17,7 @@ func init() {
 
 	game = logic.NewGame()
 
-	err := game.LoadGameData("demo3_packaged.data")
+	err := game.LoadGameData("demo3_packaged.dat")
 	if err != nil {
 		fmt.Println(fmt.Sprintf("Error LoadGameData: %s", err.Error()))
 		os.Exit(1)

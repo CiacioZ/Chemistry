@@ -22,8 +22,10 @@ import (
 )
 
 type Game struct {
-	data  GameData
-	state GameState
+	data            GameData
+	state           GameState
+	resourceManager *ResourceManager
+	packagedData    *PackagedGameData
 }
 
 func NewGame() Game {
@@ -34,6 +36,12 @@ func NewGame() Game {
 }
 
 func (g *Game) LoadGameData(filePath string) error {
+	// Check if it's the new packaged format (.dat extension)
+	if len(filePath) > 4 && filePath[len(filePath)-4:] == ".dat" {
+		return g.LoadPackagedGameData(filePath)
+	}
+
+	// Legacy format handling
 	file, err := os.Open(filePath)
 	if err != nil {
 		return fmt.Errorf("error opening game data file %s: %w", filePath, err)
@@ -134,10 +142,12 @@ func (g *Game) handleLeftClick() {
 			} else {
 				trigger := composeTrigger(g.state.currentCharacter.ID, g.state.currentVerb, g.state.cursorOnItem, model.NOTHING, g.state.currentLocation.ID)
 				location := g.GetCurrentLocation()
-				g.MoveTo(location.Items[item.ID].InteractionPoint.X, location.Items[item.ID].InteractionPoint.Y)
-
-				g.state.watingActions = append(g.state.watingActions, trigger)
-
+				if g.GetCurrentCharacterPosition().X == location.Items[item.ID].InteractionPoint.X && g.GetCurrentCharacterPosition().Y == location.Items[item.ID].InteractionPoint.Y {
+					g.ExecuteAction(trigger)
+				} else {
+					g.MoveTo(location.Items[item.ID].InteractionPoint.X, location.Items[item.ID].InteractionPoint.Y)
+					g.state.watingActions = append(g.state.watingActions, trigger)
+				}
 			}
 		}
 
@@ -455,6 +465,13 @@ func (g *Game) Draw(screen *ebiten.Image) {
 func (g *Game) drawText(screen *ebiten.Image, currentCharacter model.Character) {
 
 	if len(g.state.textToDraw) > 0 {
+		// Load fonts on-demand if not loaded
+		if g.data.Fonts["MonkeyIsland"] == nil && g.packagedData != nil {
+			g.LoadFont("MonkeyIsland")
+		}
+		if g.data.Fonts["MonkeyIslandOutline"] == nil && g.packagedData != nil {
+			g.LoadFont("MonkeyIslandOutline")
+		}
 
 		standard, err := text.NewGoTextFaceSource(bytes.NewReader(g.data.Fonts["MonkeyIsland"]))
 		if err != nil {
@@ -593,6 +610,12 @@ func (g *Game) drawCharacter(screen *ebiten.Image, character model.Character) {
 }
 
 func (g *Game) drawItem(screen *ebiten.Image, item model.Item, itemLocation model.ItemLocation) {
+	// Load item sprite on-demand if not loaded
+	if len(item.Image) == 0 && g.packagedData != nil {
+		g.LoadItemSprite(item.ID)
+		item = g.GetItem(item.ID) // Refresh item data
+	}
+
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(float64(itemLocation.LocationPoint.X), float64(itemLocation.LocationPoint.Y))
 
@@ -623,18 +646,18 @@ func (g *Game) drawItem(screen *ebiten.Image, item model.Item, itemLocation mode
 					if err != nil {
 						log.Printf("Error decoding item animation frame: %v", err)
 						// Draw placeholder if frame decode fails
-						vector.DrawFilledCircle(screen, float32(itemLocation.LocationPoint.X)+10, float32(itemLocation.LocationPoint.Y)+10, 5, color.RGBA{255, 0, 255, 255}, false)
+						//vector.DrawFilledCircle(screen, float32(itemLocation.LocationPoint.X)+10, float32(itemLocation.LocationPoint.Y)+10, 5, color.RGBA{255, 0, 255, 255}, false)
 						return
 					}
 					img := ebiten.NewImageFromImage(itemImage)
 					screen.DrawImage(img, op)
 				} else {
 					// Draw placeholder if frame data is empty
-					vector.DrawFilledCircle(screen, float32(itemLocation.LocationPoint.X)+10, float32(itemLocation.LocationPoint.Y)+10, 5, color.RGBA{0, 0, 255, 255}, false)
+					//vector.DrawFilledCircle(screen, float32(itemLocation.LocationPoint.X)+10, float32(itemLocation.LocationPoint.Y)+10, 5, color.RGBA{0, 0, 255, 255}, false)
 				}
 			} else {
 				// Draw placeholder if animation has no frames
-				vector.DrawFilledCircle(screen, float32(itemLocation.LocationPoint.X)+10, float32(itemLocation.LocationPoint.Y)+10, 5, color.RGBA{0, 255, 0, 255}, false)
+				//vector.DrawFilledCircle(screen, float32(itemLocation.LocationPoint.X)+10, float32(itemLocation.LocationPoint.Y)+10, 5, color.RGBA{0, 255, 0, 255}, false)
 			}
 		} else {
 			// Fallback to static image or placeholder if no animation name found (should not happen if map is not empty)
@@ -646,7 +669,7 @@ func (g *Game) drawItem(screen *ebiten.Image, item model.Item, itemLocation mode
 	}
 
 	// Keep drawing interaction point for debugging or gameplay
-	vector.DrawFilledCircle(screen, float32(itemLocation.InteractionPoint.X), float32(itemLocation.InteractionPoint.Y), 2, color.RGBA{0, 255, 0, 255}, false)
+	//vector.DrawFilledCircle(screen, float32(itemLocation.InteractionPoint.X), float32(itemLocation.InteractionPoint.Y), 2, color.RGBA{0, 255, 0, 255}, false)
 }
 
 // Helper function to draw static item image or placeholder
@@ -697,10 +720,31 @@ func (g *Game) drawCursor(screen *ebiten.Image) {
 
 func (g *Game) ItemAt(x int, y int) string {
 	for id, location := range g.state.currentLocation.Items {
+		item := g.GetItem(id)
 
-		alphaImage := g.GetItem(id).Alpha
+		// Load item sprite and calculate alpha if not loaded
+		if item.Alpha == nil {
+			if len(item.Image) == 0 && g.packagedData != nil {
+				g.LoadItemSprite(id)
+				item = g.GetItem(id) // Refresh item data
+			}
 
-		if alphaImage.At(x-location.LocationPoint.X, y-location.LocationPoint.Y).(color.Alpha).A > 0 {
+			if len(item.Image) > 0 {
+				img, _, err := image.Decode(bytes.NewReader(item.Image))
+				if err == nil {
+					b := img.Bounds()
+					alphaImage := image.NewAlpha(b)
+					for j := b.Min.Y; j < b.Max.Y; j++ {
+						for i := b.Min.X; i < b.Max.X; i++ {
+							alphaImage.Set(i, j, img.At(i, j))
+						}
+					}
+					item.Alpha = alphaImage
+				}
+			}
+		}
+
+		if item.Alpha != nil && item.Alpha.At(x-location.LocationPoint.X, y-location.LocationPoint.Y).(color.Alpha).A > 0 {
 			return id
 		}
 	}

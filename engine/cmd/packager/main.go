@@ -1,11 +1,17 @@
 package main
 
 import (
-	"encoding/gob"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
-	"fmt" // Per Go < 1.16, altrimenti usa io e os
+	"fmt"
+	"io"
 	"log"
-	"os" // Per Go >= 1.16
+	"os"
+	"strings"
 )
 
 // --- Definizioni Strutture Comuni ---
@@ -22,9 +28,15 @@ type PlacedEntity struct {
 	InteractionSpot Point  `json:"interactionSpot"`
 }
 
+// BinaryRef rappresenta un riferimento a dati nel file binario
+type BinaryRef struct {
+	Offset int64 `json:"offset"`
+	Size   int64 `json:"size"`
+}
+
 type AnimationFrame struct {
-	ImageData string `json:"imageData"`
-	Duration  int    `json:"duration,omitempty"`
+	ImageRef *BinaryRef `json:"imageRef,omitempty"`
+	Duration int        `json:"duration,omitempty"`
 }
 
 type Animation struct {
@@ -36,7 +48,7 @@ type Animation struct {
 // --- Dettagli Entità ---
 type LocationDetails struct {
 	Description      string         `json:"description,omitempty"`
-	BackgroundImage  string         `json:"backgroundImage,omitempty"`
+	BackgroundRef    *BinaryRef     `json:"backgroundRef,omitempty"`
 	WalkableArea     []Polygon      `json:"walkableArea,omitempty"`
 	PlacedItems      []PlacedEntity `json:"placedItems,omitempty"`
 	PlacedCharacters []PlacedEntity `json:"placedCharacters,omitempty"`
@@ -44,36 +56,34 @@ type LocationDetails struct {
 }
 
 type CharacterDetails struct {
-	Description        string      `json:"description,omitempty"`
-	ImageData          string      `json:"imageData,omitempty"`
-	InventoryImageData string      `json:"inventoryImageData,omitempty"`
-	Animations         []Animation `json:"animations,omitempty"`
-	InteractionSpot    *Point      `json:"interactionSpot,omitempty"`
+	Description       string      `json:"description,omitempty"`
+	ImageRef          *BinaryRef  `json:"imageRef,omitempty"`
+	InventoryImageRef *BinaryRef  `json:"inventoryImageRef,omitempty"`
+	Animations        []Animation `json:"animations,omitempty"`
+	InteractionSpot   *Point      `json:"interactionSpot,omitempty"`
 }
 
 type ItemDetails struct {
-	Description        string      `json:"description,omitempty"`
-	ImageData          string      `json:"imageData,omitempty"`
-	CanBePickedUp      bool        `json:"canBePickedUp,omitempty"`
-	InventoryImageData string      `json:"inventoryImageData,omitempty"`
-	Animations         []Animation `json:"animations,omitempty"`
-	UseWith            bool        `json:"useWith,omitempty"`
-	InteractionSpot    *Point      `json:"interactionSpot,omitempty"`
+	Description       string      `json:"description,omitempty"`
+	ImageRef          *BinaryRef  `json:"imageRef,omitempty"`
+	CanBePickedUp     bool        `json:"canBePickedUp,omitempty"`
+	InventoryImageRef *BinaryRef  `json:"inventoryImageRef,omitempty"`
+	Animations        []Animation `json:"animations,omitempty"`
+	UseWith           bool        `json:"useWith,omitempty"`
+	InteractionSpot   *Point      `json:"interactionSpot,omitempty"`
 }
 
 type FontDetails struct {
-	FontFileUrl string `json:"fontFileUrl,omitempty"`
+	FontRef *BinaryRef `json:"fontRef,omitempty"`
 }
 
 type ScriptDetails struct {
-	ScriptContent string `json:"scriptContent,omitempty"`
+	ScriptRef *BinaryRef `json:"scriptRef,omitempty"`
 }
 
-// ActionDetails - definiscila se usata come entità separata
 type ActionDetails struct {
 	ActionType     string `json:"actionType,omitempty"`
 	TargetEntityId string `json:"targetEntityId,omitempty"`
-	// Altri campi specifici per le azioni
 }
 
 type CursorDetails struct {
@@ -113,7 +123,7 @@ type ProjectData struct {
 	Entities    []GenericEntity   `json:"entities"`
 }
 
-// Strutture complete per le Entità (da usare dopo il parsing in due fasi di GenericEntity)
+// Strutture complete per le Entità
 type Location struct {
 	ID       string           `json:"id"`
 	Type     string           `json:"type"`
@@ -170,35 +180,141 @@ type Cursor struct {
 	Details  *CursorDetails `json:"details,omitempty"`
 }
 
-// TypedNode (per il parsing in due fasi dei nodi del diagramma)
 type TypedNode struct {
 	ID          string          `json:"id"`
 	Type        string          `json:"type"`
 	Label       string          `json:"label"`
 	Position    NodePosition    `json:"position"`
 	Connections NodeConnections `json:"connections"`
-	// Campi specifici
-	From        string     `json:"from,omitempty"`
-	Verb        string     `json:"verb,omitempty"`
-	To          string     `json:"to,omitempty"`
-	With        string     `json:"with,omitempty"`
-	Where       string     `json:"where,omitempty"`
-	Script      string     `json:"script,omitempty"`
-	Description string     `json:"description,omitempty"`
-	Flags       []NodeFlag `json:"flags,omitempty"`
+	From        string          `json:"from,omitempty"`
+	Verb        string          `json:"verb,omitempty"`
+	To          string          `json:"to,omitempty"`
+	With        string          `json:"with,omitempty"`
+	Where       string          `json:"where,omitempty"`
+	Script      string          `json:"script,omitempty"`
+	Description string          `json:"description,omitempty"`
+	Flags       []NodeFlag      `json:"flags,omitempty"`
 }
 
-// Nuova struct per contenere tutti i dati da salvare con gob
 type PackagedGameData struct {
-	ProjectName  string
-	Version      string
-	DiagramNodes []TypedNode
-	Locations    []Location
-	Characters   []Character
-	Items        []Item
-	Fonts        []Font
-	Scripts      []Script
-	Cursors      []Cursor
+	ProjectName  string      `json:"projectName"`
+	Version      string      `json:"version"`
+	DiagramNodes []TypedNode `json:"diagramNodes"`
+	Locations    []Location  `json:"locations"`
+	Characters   []Character `json:"characters"`
+	Items        []Item      `json:"items"`
+	Fonts        []Font      `json:"fonts"`
+	Scripts      []Script    `json:"scripts"`
+	Cursors      []Cursor    `json:"cursors"`
+}
+
+// Strutture originali per il parsing
+type LocationDetailsOrig struct {
+	Description      string         `json:"description,omitempty"`
+	BackgroundImage  string         `json:"backgroundImage,omitempty"`
+	WalkableArea     []Polygon      `json:"walkableArea,omitempty"`
+	PlacedItems      []PlacedEntity `json:"placedItems,omitempty"`
+	PlacedCharacters []PlacedEntity `json:"placedCharacters,omitempty"`
+	BackgroundColor  string         `json:"backgroundColor,omitempty"`
+}
+
+type CharacterDetailsOrig struct {
+	Description        string          `json:"description,omitempty"`
+	ImageData          string          `json:"imageData,omitempty"`
+	InventoryImageData string          `json:"inventoryImageData,omitempty"`
+	Animations         []AnimationOrig `json:"animations,omitempty"`
+	InteractionSpot    *Point          `json:"interactionSpot,omitempty"`
+}
+
+type ItemDetailsOrig struct {
+	Description        string          `json:"description,omitempty"`
+	ImageData          string          `json:"imageData,omitempty"`
+	CanBePickedUp      bool            `json:"canBePickedUp,omitempty"`
+	InventoryImageData string          `json:"inventoryImageData,omitempty"`
+	Animations         []AnimationOrig `json:"animations,omitempty"`
+	UseWith            bool            `json:"useWith,omitempty"`
+	InteractionSpot    *Point          `json:"interactionSpot,omitempty"`
+}
+
+type AnimationOrig struct {
+	Name   string               `json:"name"`
+	Frames []AnimationFrameOrig `json:"frames"`
+	Loop   bool                 `json:"loop,omitempty"`
+}
+
+type AnimationFrameOrig struct {
+	ImageData string `json:"imageData"`
+	Duration  int    `json:"duration,omitempty"`
+}
+
+type FontDetailsOrig struct {
+	FontFileUrl string `json:"fontFileUrl,omitempty"`
+}
+
+type ScriptDetailsOrig struct {
+	ScriptContent string `json:"scriptContent,omitempty"`
+}
+
+type CursorDetailsOrig struct {
+	Animations []AnimationOrig `json:"animations,omitempty"`
+}
+
+func writeBinaryData(binFile *os.File, data string) (*BinaryRef, error) {
+	if data == "" {
+		return nil, nil
+	}
+
+	// Handle data URL format (data:mime/type;base64,actualdata)
+	var base64Data string
+	if strings.HasPrefix(data, "data:") {
+		parts := strings.Split(data, ",")
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid data URL format")
+		}
+		base64Data = parts[1]
+	} else {
+		base64Data = data
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(base64Data)
+	if err != nil {
+		return nil, err
+	}
+
+	offset, err := binFile.Seek(0, os.SEEK_CUR)
+	if err != nil {
+		return nil, err
+	}
+
+	n, err := binFile.Write(decoded)
+	if err != nil {
+		return nil, err
+	}
+
+	return &BinaryRef{Offset: offset, Size: int64(n)}, nil
+}
+
+func encryptJSON(data []byte, projectName string) ([]byte, error) {
+	// Genera chiave da project name (in produzione usa una chiave più sicura)
+	hash := sha256.Sum256([]byte(projectName))
+	key := hash[:]
+
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, err
+	}
+
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+		return nil, err
+	}
+
+	return gcm.Seal(nonce, nonce, data, nil), nil
 }
 
 func main() {
@@ -208,11 +324,10 @@ func main() {
 	jsonFilePath := os.Args[1]
 
 	log.Printf("Reading project file from: %s\n", jsonFilePath)
-	jsonData, err := os.ReadFile(jsonFilePath) // os.ReadFile è per Go >= 1.16
+	jsonData, err := os.ReadFile(jsonFilePath)
 	if err != nil {
 		log.Fatalf("Error reading JSON file: %v\n", err)
 	}
-	log.Println("Successfully read JSON file.")
 
 	var projectData ProjectData
 	err = json.Unmarshal(jsonData, &projectData)
@@ -221,11 +336,15 @@ func main() {
 	}
 	log.Printf("Successfully unmarshalled project data for: %s (Version: %s)\n", projectData.ProjectName, projectData.Version)
 
-	fmt.Printf("Project Name: %s\n", projectData.ProjectName)
-	fmt.Printf("Number of raw diagram nodes: %d\n", len(projectData.Nodes))
-	fmt.Printf("Number of generic entities: %d\n", len(projectData.Entities))
+	// Crea file binario
+	binFilePath := projectData.ProjectName + "_data.bin"
+	binFile, err := os.Create(binFilePath)
+	if err != nil {
+		log.Fatalf("Error creating binary file: %v", err)
+	}
+	defer binFile.Close()
 
-	// --- Parsing in due fasi per DiagramNodes ---
+	// Parse diagram nodes
 	var parsedDiagramNodes []TypedNode
 	for i, rawNode := range projectData.Nodes {
 		var node TypedNode
@@ -234,17 +353,10 @@ func main() {
 			continue
 		}
 		parsedDiagramNodes = append(parsedDiagramNodes, node)
-		// log.Printf("Parsed Node (%s): %s\n", node.Type, node.Label)
 	}
 	log.Printf("Successfully parsed %d diagram nodes.\n", len(parsedDiagramNodes))
-	// Esempio di accesso
-	/*
-	   if len(parsedDiagramNodes) > 0 && parsedDiagramNodes[0].Type == "state" {
-	       fmt.Printf("First node is a State with description: %s and flags: %+v\n", parsedDiagramNodes[0].Description, parsedDiagramNodes[0].Flags)
-	   }
-	*/
 
-	// --- Parsing in due fasi per Entities ---
+	// Parse entities
 	var locations []Location
 	var characters []Character
 	var items []Item
@@ -255,86 +367,220 @@ func main() {
 	for _, genericEntity := range projectData.Entities {
 		switch genericEntity.Type {
 		case "Location":
-			var details LocationDetails
+			var detailsOrig LocationDetailsOrig
 			if len(genericEntity.DetailsRaw) > 0 && string(genericEntity.DetailsRaw) != "null" {
-				if err := json.Unmarshal(genericEntity.DetailsRaw, &details); err != nil {
+				if err := json.Unmarshal(genericEntity.DetailsRaw, &detailsOrig); err != nil {
 					log.Printf("Error unmarshalling LocationDetails for entity %s: %v\n", genericEntity.ID, err)
 					continue
 				}
 			}
+
+			details := LocationDetails{
+				Description:      detailsOrig.Description,
+				WalkableArea:     detailsOrig.WalkableArea,
+				PlacedItems:      detailsOrig.PlacedItems,
+				PlacedCharacters: detailsOrig.PlacedCharacters,
+				BackgroundColor:  detailsOrig.BackgroundColor,
+			}
+
+			if detailsOrig.BackgroundImage != "" {
+				ref, err := writeBinaryData(binFile, detailsOrig.BackgroundImage)
+				if err != nil {
+					log.Printf("Error writing background image for %s: %v\n", genericEntity.ID, err)
+				} else {
+					details.BackgroundRef = ref
+				}
+			}
+
 			locations = append(locations, Location{ID: genericEntity.ID, Type: genericEntity.Type, Name: genericEntity.Name, Internal: genericEntity.Internal, Details: &details})
+
 		case "Character":
-			var details CharacterDetails
+			var detailsOrig CharacterDetailsOrig
 			if len(genericEntity.DetailsRaw) > 0 && string(genericEntity.DetailsRaw) != "null" {
-				if err := json.Unmarshal(genericEntity.DetailsRaw, &details); err != nil {
+				if err := json.Unmarshal(genericEntity.DetailsRaw, &detailsOrig); err != nil {
 					log.Printf("Error unmarshalling CharacterDetails for entity %s: %v\n", genericEntity.ID, err)
 					continue
 				}
 			}
+
+			details := CharacterDetails{
+				Description:     detailsOrig.Description,
+				InteractionSpot: detailsOrig.InteractionSpot,
+			}
+
+			if detailsOrig.ImageData != "" {
+				ref, err := writeBinaryData(binFile, detailsOrig.ImageData)
+				if err != nil {
+					log.Printf("Error writing image for %s: %v\n", genericEntity.ID, err)
+				} else {
+					details.ImageRef = ref
+				}
+			}
+
+			if detailsOrig.InventoryImageData != "" {
+				ref, err := writeBinaryData(binFile, detailsOrig.InventoryImageData)
+				if err != nil {
+					log.Printf("Error writing inventory image for %s: %v\n", genericEntity.ID, err)
+				} else {
+					details.InventoryImageRef = ref
+				}
+			}
+
+			for _, animOrig := range detailsOrig.Animations {
+				anim := Animation{Name: animOrig.Name, Loop: animOrig.Loop}
+				for _, frameOrig := range animOrig.Frames {
+					frame := AnimationFrame{Duration: frameOrig.Duration}
+					if frameOrig.ImageData != "" {
+						ref, err := writeBinaryData(binFile, frameOrig.ImageData)
+						if err != nil {
+							log.Printf("Error writing animation frame: %v\n", err)
+						} else {
+							frame.ImageRef = ref
+						}
+					}
+					anim.Frames = append(anim.Frames, frame)
+				}
+				details.Animations = append(details.Animations, anim)
+			}
+
 			characters = append(characters, Character{ID: genericEntity.ID, Type: genericEntity.Type, Name: genericEntity.Name, Internal: genericEntity.Internal, Details: &details})
+
 		case "Item":
-			var details ItemDetails
+			var detailsOrig ItemDetailsOrig
 			if len(genericEntity.DetailsRaw) > 0 && string(genericEntity.DetailsRaw) != "null" {
-				if err := json.Unmarshal(genericEntity.DetailsRaw, &details); err != nil {
+				if err := json.Unmarshal(genericEntity.DetailsRaw, &detailsOrig); err != nil {
 					log.Printf("Error unmarshalling ItemDetails for entity %s: %v\n", genericEntity.ID, err)
 					continue
 				}
 			}
+
+			details := ItemDetails{
+				Description:     detailsOrig.Description,
+				CanBePickedUp:   detailsOrig.CanBePickedUp,
+				UseWith:         detailsOrig.UseWith,
+				InteractionSpot: detailsOrig.InteractionSpot,
+			}
+
+			if detailsOrig.ImageData != "" {
+				ref, err := writeBinaryData(binFile, detailsOrig.ImageData)
+				if err != nil {
+					log.Printf("Error writing image for %s: %v\n", genericEntity.ID, err)
+				} else {
+					details.ImageRef = ref
+				}
+			}
+
+			if detailsOrig.InventoryImageData != "" {
+				ref, err := writeBinaryData(binFile, detailsOrig.InventoryImageData)
+				if err != nil {
+					log.Printf("Error writing inventory image for %s: %v\n", genericEntity.ID, err)
+				} else {
+					details.InventoryImageRef = ref
+				}
+			}
+
+			for _, animOrig := range detailsOrig.Animations {
+				anim := Animation{Name: animOrig.Name, Loop: animOrig.Loop}
+				for _, frameOrig := range animOrig.Frames {
+					frame := AnimationFrame{Duration: frameOrig.Duration}
+					if frameOrig.ImageData != "" {
+						ref, err := writeBinaryData(binFile, frameOrig.ImageData)
+						if err != nil {
+							log.Printf("Error writing animation frame: %v\n", err)
+						} else {
+							frame.ImageRef = ref
+						}
+					}
+					anim.Frames = append(anim.Frames, frame)
+				}
+				details.Animations = append(details.Animations, anim)
+			}
+
 			items = append(items, Item{ID: genericEntity.ID, Type: genericEntity.Type, Name: genericEntity.Name, Internal: genericEntity.Internal, Details: &details})
+
 		case "Font":
-			var details FontDetails
+			var detailsOrig FontDetailsOrig
 			if len(genericEntity.DetailsRaw) > 0 && string(genericEntity.DetailsRaw) != "null" {
-				if err := json.Unmarshal(genericEntity.DetailsRaw, &details); err != nil {
+				if err := json.Unmarshal(genericEntity.DetailsRaw, &detailsOrig); err != nil {
 					log.Printf("Error unmarshalling FontDetails for entity %s: %v\n", genericEntity.ID, err)
 					continue
 				}
 			}
+
+			details := FontDetails{}
+			if detailsOrig.FontFileUrl != "" {
+				ref, err := writeBinaryData(binFile, detailsOrig.FontFileUrl)
+				if err != nil {
+					log.Printf("Error writing font for %s: %v\n", genericEntity.ID, err)
+				} else {
+					details.FontRef = ref
+				}
+			}
+
 			fonts = append(fonts, Font{ID: genericEntity.ID, Type: genericEntity.Type, Name: genericEntity.Name, Internal: genericEntity.Internal, Details: &details})
+
 		case "Script":
-			var details ScriptDetails
+			var detailsOrig ScriptDetailsOrig
 			if len(genericEntity.DetailsRaw) > 0 && string(genericEntity.DetailsRaw) != "null" {
-				if err := json.Unmarshal(genericEntity.DetailsRaw, &details); err != nil {
+				if err := json.Unmarshal(genericEntity.DetailsRaw, &detailsOrig); err != nil {
 					log.Printf("Error unmarshalling ScriptDetails for entity %s: %v\n", genericEntity.ID, err)
 					continue
 				}
 			}
+
+			details := ScriptDetails{}
+			if detailsOrig.ScriptContent != "" {
+				// Script content is text, not base64, so encode it first
+				scriptBytes := []byte(detailsOrig.ScriptContent)
+				offset, err := binFile.Seek(0, os.SEEK_CUR)
+				if err != nil {
+					log.Printf("Error getting offset for script %s: %v\n", genericEntity.ID, err)
+				} else {
+					n, err := binFile.Write(scriptBytes)
+					if err != nil {
+						log.Printf("Error writing script for %s: %v\n", genericEntity.ID, err)
+					} else {
+						details.ScriptRef = &BinaryRef{Offset: offset, Size: int64(n)}
+					}
+				}
+			}
+
 			scripts = append(scripts, Script{ID: genericEntity.ID, Type: genericEntity.Type, Name: genericEntity.Name, Internal: genericEntity.Internal, Details: &details})
+
 		case "Cursor":
-			var details CursorDetails
+			var detailsOrig CursorDetailsOrig
 			if len(genericEntity.DetailsRaw) > 0 && string(genericEntity.DetailsRaw) != "null" {
-				if err := json.Unmarshal(genericEntity.DetailsRaw, &details); err != nil {
+				if err := json.Unmarshal(genericEntity.DetailsRaw, &detailsOrig); err != nil {
 					log.Printf("Error unmarshalling CursorDetails for entity %s: %v\n", genericEntity.ID, err)
 					continue
 				}
 			}
+
+			details := CursorDetails{}
+			for _, animOrig := range detailsOrig.Animations {
+				anim := Animation{Name: animOrig.Name, Loop: animOrig.Loop}
+				for _, frameOrig := range animOrig.Frames {
+					frame := AnimationFrame{Duration: frameOrig.Duration}
+					if frameOrig.ImageData != "" {
+						ref, err := writeBinaryData(binFile, frameOrig.ImageData)
+						if err != nil {
+							log.Printf("Error writing cursor animation frame: %v\n", err)
+						} else {
+							frame.ImageRef = ref
+						}
+					}
+					anim.Frames = append(anim.Frames, frame)
+				}
+				details.Animations = append(details.Animations, anim)
+			}
+
 			cursors = append(cursors, Cursor{ID: genericEntity.ID, Type: genericEntity.Type, Name: genericEntity.Name, Internal: genericEntity.Internal, Details: &details})
-		default:
-			log.Printf("Unknown entity type '%s' for entity ID %s, Name %s\n", genericEntity.Type, genericEntity.ID, genericEntity.Name)
 		}
 	}
 
 	log.Printf("Parsed Locations: %d, Characters: %d, Items: %d, Fonts: %d, Scripts: %d, Cursors: %d\n",
 		len(locations), len(characters), len(items), len(fonts), len(scripts), len(cursors))
 
-	// Esempi di accesso ai dati parsati:
-	/*
-			if len(locations) > 0 && locations[0].Details != nil {
-				fmt.Printf("First location name: %s, Description: %s\n", locations[0].Name, locations[0].Details.Description)
-		        if len(locations[0].Details.Polygons) > 0 {
-		            fmt.Printf("First polygon of first location: %+v\n", locations[0].Details.Polygons[0])
-		        }
-			}
-		    if len(items) > 0 {
-		        for _, item := range items {
-		            if item.Name == "Key" && item.Details != nil {
-		                 fmt.Printf("Key item image data (first 30 chars): %.30s...\n", item.Details.ImageData)
-		                 break
-		            }
-		        }
-		    }
-	*/
-
-	// Creare l'oggetto PackagedGameData
 	gameDataToPackage := PackagedGameData{
 		ProjectName:  projectData.ProjectName,
 		Version:      projectData.Version,
@@ -347,23 +593,29 @@ func main() {
 		Cursors:      cursors,
 	}
 
-	// Definire il percorso del file di output binario
-	outputFilePath := projectData.ProjectName + "_packaged.data" // Estensione .data o .gob o .bin
-	// Sostituisci caratteri non validi per i nomi di file se projectName può contenerli
-	// outputFilePath = strings.ReplaceAll(projectData.ProjectName, " ", "_") + "_packaged.data"
-
-	file, err := os.Create(outputFilePath)
+	// Serializza JSON in memoria
+	gameData, err := json.Marshal(gameDataToPackage)
 	if err != nil {
-		log.Fatalf("Error creating output file %s: %v", outputFilePath, err)
-	}
-	defer file.Close()
-
-	encoder := gob.NewEncoder(file)
-	err = encoder.Encode(gameDataToPackage)
-	if err != nil {
-		log.Fatalf("Error encoding data with gob: %v", err)
+		log.Fatalf("Error marshalling JSON: %v", err)
 	}
 
-	log.Printf("Game data successfully packaged to: %s\n", outputFilePath)
+	// Cifra il JSON
+	encryptedData, err := encryptJSON(gameData, projectData.ProjectName)
+	if err != nil {
+		log.Fatalf("Error encrypting JSON: %v", err)
+	}
+
+	// Salva il file cifrato
+	jsonFilePath = projectData.ProjectName + "_packaged.dat"
+	err = os.WriteFile(jsonFilePath, encryptedData, 0644)
+	if err != nil {
+		log.Fatalf("Error writing encrypted file: %v", err)
+	}
+
+	log.Printf("Game data successfully packaged to: %s and %s\n", jsonFilePath, binFilePath)
+	fmt.Printf("Binary file size: %d bytes\n", func() int64 {
+		stat, _ := binFile.Stat()
+		return stat.Size()
+	}())
 	log.Println("Packager finished.")
 }

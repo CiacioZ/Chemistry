@@ -193,6 +193,15 @@ func (l *Location) AddWalkableArea(area WalkableArea) {
 	l.walkableAreas = append(l.walkableAreas, area)
 }
 
+// SetBackground updates the location's background layer
+func (l *Location) SetBackground(background []byte) {
+	if len(l.layers) > 0 {
+		l.layers[0].Image = background
+	} else {
+		l.layers = append(l.layers, Layer{Image: background})
+	}
+}
+
 func NewItem(id string, name string, useWith bool, pickable bool, sprite []byte) Item {
 	data := Item{
 		Entity: Entity{
